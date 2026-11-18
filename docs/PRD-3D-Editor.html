@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>3D 场景编辑器 · 产品需求文档 (PRD)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  :root {
+    --text: #1f2937;
+    --text-sub: #4b5563;
+    --text-mute: #6b7280;
+    --bg: #ffffff;
+    --bg-alt: #f9fafb;
+    --border: #e5e7eb;
+    --accent: #6366f1;
+    --accent-soft: #eef2ff;
+    --p0: #059669;
+    --p0-soft: #ecfdf5;
+    --p1: #d97706;
+    --p1-soft: #fffbeb;
+    --p2: #7c3aed;
+    --p2-soft: #f5f3ff;
+    --danger: #dc2626;
+    --code-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    background: #f3f4f6;
+    line-height: 1.7;
+  }
+  .page {
+    max-width: 880px;
+    margin: 40px auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 56px 64px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  /* 封面 */
+  .cover {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 40px;
+  }
+  .cover-meta {
+    font-size: 13px;
+    color: var(--text-mute);
+    display: flex;
+    gap: 24px;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 32px;
+    letter-spacing: -0.5px;
+    margin: 0 0 12px;
+  }
+  .cover .subtitle {
+    font-size: 15px;
+    color: var(--text-sub);
+    margin: 0;
+  }
+  /* 目录 */
+  .toc {
+    background: var(--bg-alt);
+    border-radius: 8px;
+    padding: 20px 28px;
+    margin-bottom: 40px;
+  }
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+  }
+  .toc li {
+    margin: 4px 0;
+    font-size: 14px;
+  }
+  .toc a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  /* 章节 */
+  h2 {
+    font-size: 22px;
+    border-left: 4px solid var(--accent);
+    padding-left: 14px;
+    margin: 48px 0 20px;
+    letter-spacing: -0.3px;
+  }
+  h3 {
+    font-size: 17px;
+    margin: 32px 0 12px;
+    color: var(--text);
+  }
+  h4 {
+    font-size: 15px;
+    margin: 20px 0 8px;
+    color: var(--text-sub);
+  }
+  p { margin: 8px 0; font-size: 14.5px; color: var(--text-sub); }
+  strong { color: var(--text); }
+  em { color: var(--text); font-style: normal; background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; color: var(--text-sub); font-size: 14.5px; }
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-alt);
+    font-weight: 600;
+    color: var(--text);
+    font-size: 13px;
+  }
+  td { color: var(--text-sub); }
+  td code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  /* 分期徽章 */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-p0 { background: var(--p0-soft); color: var(--p0); }
+  .badge-p1 { background: var(--p1-soft); color: var(--p1); }
+  .badge-p2 { background: var(--p2-soft); color: var(--p2); }
+  .row-p0 { background: #f6fffa; }
+  .row-p1 { background: #fffcf2; }
+  .row-p2 { background: #faf7ff; }
+  /* 方框 */
+  .callout {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  .callout-info { background: var(--accent-soft); border-left: 3px solid var(--accent); color: var(--text); }
+  .callout-warn { background: #fef2f2; border-left: 3px solid var(--danger); color: var(--text); }
+  .callout-p0 { background: var(--p0-soft); border-left: 3px solid var(--p0); }
+  .callout-p1 { background: var(--p1-soft); border-left: 3px solid var(--p1); }
+  .callout-p2 { background: var(--p2-soft); border-left: 3px solid var(--p2); }
+  /* ASCII 流程图 */
+  .ascii-flow {
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 16px 20px;
+    font-family: ui-monospace, Consolas, Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin: 12px 0;
+    color: var(--text);
+  }
+  /* Field 表格的分组标题 */
+  .section-label {
+    font-weight: 700;
+    color: var(--text);
+  }
+  /* 页脚 */
+  .footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-mute);
+    text-align: center;
+  }
+  .decision-log {
+    font-size: 13px;
+    color: var(--text-mute);
+  }
+  .decision-log span {
+    display: inline-block;
+    margin-right: 12px;
+  }
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; border: none; margin: 0; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ 封面 ============ -->
+  <header class="cover">
+    <div class="cover-meta">
+      <span>文档编号：PRD-3DE-2026-01</span>
+      <span>版本：v1.0</span>
+      <span>状态：可评审</span>
+      <span>作者：产品侧</span>
+    </div>
+    <h1>3D 场景编辑器 · 产品需求文档</h1>
+    <p class="subtitle">一个在浏览器中快速搭建、编辑、预览 3D 场景的轻量工具。面向前端开发者、技术原型设计师、3D 场景爱好者，分三期交付。</p>
+  </header>
+
+  <!-- ============ 目录 ============ -->
+  <nav class="toc">
+    <strong style="font-size:14px;">目录</strong>
+    <ol>
+      <li><a href="#sec-1">背景与目标</a></li>
+      <li><a href="#sec-2">范围与分期边界</a></li>
+      <li><a href="#sec-3">产品模型</a></li>
+      <li><a href="#sec-4">功能需求（P0 · MVP 闭环）</a></li>
+      <li><a href="#sec-5">功能需求（P1 · 效率与场景丰富）</a></li>
+      <li><a href="#sec-6">功能需求（P2 · 进阶能力）</a></li>
+      <li><a href="#sec-7">共享规则与异常处理</a></li>
+      <li><a href="#sec-8">开放问题</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ 1. 背景与目标 ============ -->
+  <section id="sec-1">
+    <h2>1. 背景与目标</h2>
+
+    <h3>1.1 要解决的问题</h3>
+    <p>
+      Three.js 生态的文档与示例虽然丰富，但"在浏览器里从零拼一个 3D 场景"对非专业用户来说仍然有门槛：
+      几何体、材质、光照、坐标变换散落在不同的 API 里，调一个效果往往要反复改代码、刷新页面。
+    </p>
+    <p>
+      同时，专业级工具（Blender、Unity）体积大、启动慢、学习曲线陡，不适合"画一个正方体、摆两个球、看一下光效"这种轻量的探索需求。
+    </p>
+
+    <h3>1.2 目标用户与核心任务</h3>
+    <table>
+      <thead><tr><th>用户画像</th><th>触发点</th><th>核心任务</th><th>完成标志</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>前端开发者</td>
+          <td>需要给活动页面加一个 3D 效果，想先快速摸索灯光和材质组合</td>
+          <td>在可视化编辑器里搭场景 → 调到满意 → 拿到 JSON 配置或截图</td>
+          <td>在 10 分钟内产出一段可用的 Three.js 配置片段或导出图片</td>
+        </tr>
+        <tr>
+          <td>技术原型设计师</td>
+          <td>有一个空间交互的概念想给团队看，不想用 Figma 假 3D</td>
+          <td>快速摆放几何体 → 拖拽调整 → 邀请别人链接进来预览</td>
+          <td>生成一个带可交互预览的在线链接</td>
+        </tr>
+        <tr>
+          <td>3D 初学者</td>
+          <td>在学 Three.js，想把"旋转一个物体"这个概念变成可感知的动手练习</td>
+          <td>选中物体 → 拖动 Gizmo → 看到坐标值实时变化</td>
+          <td>理解 position / rotation / scale 三个坐标的区别与效果</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>1.3 产品决策与可观察结果</h3>
+    <div class="callout callout-info">
+      <strong>产品决策：</strong>做一个<strong>单用户、本地优先</strong>的 Web 端 3D 场景编辑器，而不是云端协作工具或专业建模软件的替代品。聚焦"摆几何体 + 调属性 + 预览"这一条最短路径，在此之上扩展。
+    </div>
+    <p>
+      可观察的结果：用户打开编辑器 → 3 秒内看到一个可操作的场景 → 能在不写任何代码的情况下添加、选中、移动、删除几何体 → 能撤销自己做过的动作 → 能把场景以 JSON 文件保存到本地磁盘。
+    </p>
+  </section>
+
+  <!-- ============ 2. 范围与分期边界 ============ -->
+  <section id="sec-2">
+    <h2>2. 范围与分期边界</h2>
+
+    <h3>2.1 产品合同</h3>
+    <table>
+      <tbody>
+        <tr><th style="width:140px;">维度</th><th>内容</th></tr>
+        <tr><td>主要用户</td><td>单用户本地编辑（P0/P1/P2 全程）</td></tr>
+        <tr><td>共享对象</td><td>一个场景（Scene），包含 N 个对象（Object），每个对象有类型、变换、材质、可见性</td></tr>
+        <tr><td>进入条件</td><td>访问编辑器 URL，场景默认含一个地面 + 一个示例方块</td></tr>
+        <tr><td>完成条件</td><td>用户做出并保存了自己的场景，且能再次打开继续编辑</td></tr>
+        <tr><td>故障恢复</td><td>任意操作可撤销；页面崩溃不丢失上次保存的文件</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2.2 分期定义</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:60px;">阶段</th>
+          <th style="width:120px;">定位</th>
+          <th>核心交付</th>
+          <th>可观察的完成标志</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-p0">
+          <td><span class="badge badge-p0">P0</span></td>
+          <td>MVP 闭环</td>
+          <td>Canvas 场景 + 5 种基础几何体 + Gizmo 变换 + 属性面板 + 撤销重做 + JSON 导出</td>
+          <td>用户能用编辑器从零搭一个场景并导出 JSON 文件，在另一个会话里重新导入</td>
+        </tr>
+        <tr class="row-p1">
+          <td><span class="badge badge-p1">P1</span></td>
+          <td>效率与丰富度</td>
+          <td>更多几何体 + 场景保存/加载 + 快捷键 + 材质切换 + 对象列表完善</td>
+          <td>用户能在 15 分钟内独立完成一个包含 10+ 对象、3 种材质的小场景，并保存为多个版本</td>
+        </tr>
+        <tr class="row-p2">
+          <td><span class="badge badge-p2">P2</span></td>
+          <td>进阶能力</td>
+          <td>导入 GLB/GLTF + 多物体批选 + 分组/父子 + 时间轴动画 + 渲染导出（PNG / 静态 HTML）</td>
+          <td>用户能把编辑器当作"轻量场景可视化工具"使用，产出带交互的在线演示页</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.3 明确排除的范围</h3>
+    <ul>
+      <li>多人实时协作（WebRTC / CRDT）— 放在 P2 之后再评估，不属于当前产品合同</li>
+      <li>顶点/边/面级别的建模（Subdivision、Edge Loop、Bevel）— 这是建模软件的职责</li>
+      <li>物理引擎（重力、碰撞）— 属于游戏引擎范畴，P2 不做</li>
+      <li>骨骼动画、Morph Target — 需要更完整的资产管线，超出当前范围</li>
+      <li>账户系统、云端自动保存 — P0/P1/P2 全程本地优先，显式提供"保存到文件"按钮</li>
+    </ul>
+  </section>
+
+  <!-- ============ 3. 产品模型 ============ -->
+  <section id="sec-3">
+    <h2>3. 产品模型</h2>
+
+    <div class="callout callout-info">
+      <strong>静态 UI 版实现说明（2026-11）：</strong>当前代码库已完成 P0 / P1 / P2 的<strong>全部 UI 壳</strong>（含时间轴、树形列表、材质 / 环境区、渲染导出菜单），并追加以下超出原 PRD 的内容：画布右上角<strong>视图控制条</strong>、地板降级为<strong>环境元素</strong>（环境区可显隐 / 换色）、对象<strong>锁定</strong>字段与图标、列表搜索框与拖拽把手、时间轴播放头 / 多轨 / 时长标注、Vec3 分组折叠与重置。交互与功能实装按 <code>docs/DEV-PLAN.md</code> 推进，后续演进见 <code>docs/ROADMAP.md</code>。本文档相应小节已同步（标注「静态版」处）。
+    </div>
+
+    <h3>3.1 界面区域</h3>
+    <p>编辑器采用经典三栏布局，各区域职责单一、互不重叠：</p>
+
+    <div class="ascii-flow">
+      ┌─────────────────────────────────────────────────────────┐
+      │  [工具栏 · Toolbar]   变换模式 | 撤销/重做 | 保存/清空   │
+      ├──────────┬──────────────────────────────┬──────────────┤
+      │          │                    [视图控制条]│              │
+      │  资源库  │                              │  属性面板    │
+      │  对象列表 │        3D 画布              │  名称/颜色   │
+      │  (240px) │     (Canvas + Gizmo)         │  位置/旋转   │
+      │          │                              │  缩放/材质   │
+      │          │                              │   (260px)    │
+      ├──────────┴──────────────────────────────┴──────────────┤
+      │  [时间轴 · Timeline]（静态壳已铺，见 6.4）              │
+      ├─────────────────────────────────────────────────────────┤
+      │  [状态栏 · StatusBar]   对象数 | 选中状态 | 快捷键提示  │
+      └─────────────────────────────────────────────────────────┘
+    </div>
+    <p>
+      画布右上角为<strong>视图控制条</strong>（透视 / 前 / 顶 / 视图切换 + 实体 / 线框着色），静态版已铺 UI，行为实装见 ROADMAP V1.1。
+    </p>
+
+    <h3>3.2 核心对象模型</h3>
+    <table>
+      <thead><tr><th>概念</th><th>定义</th><th>唯一性</th></tr></thead>
+      <tbody>
+        <tr><td><code>Scene</code></td><td>一个 3D 世界，包含若干 Object、全局光照、相机、环境设置</td><td>单实例，随会话存在</td></tr>
+        <tr><td><code>SceneObject</code></td><td>场景中的一个可渲染对象（几何体 + 材质 + 变换）</td><td><code>id</code> 唯一标识，生成后不变</td></tr>
+        <tr><td><code>PrimitiveType</code></td><td>内置几何体类型的枚举（box / sphere / cylinder / cone / torus / …）</td><td>枚举值固定，扩展即加新值</td></tr>
+        <tr><td><code>TransformMode</code></td><td>Gizmo 的三种工作模式：translate / rotate / scale</td><td>三选一，全局共享</td></tr>
+        <tr><td><code>HistoryEntry</code></td><td>一次可撤销操作产生的快照</td><td>最多保留 50 条，超出时丢弃最旧</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3.3 默认场景</h3>
+    <p>
+      首次打开编辑器或点击"清空"后，场景重置为以下内容，让新用户看到一个"已经跑起来"的 3D 世界，而不是黑屏：
+    </p>
+    <ul>
+      <li>一个无限网格地面（<code>y = 0</code>）</li>
+      <li>一个程序化天空（sunPosition 在东北方向）</li>
+      <li>环境光 + 方向光（方向光产生阴影）</li>
+      <li>一块 20 × 20 的地板平面（<strong>环境元素</strong>，静态版已实装：不进对象列表、不可选中删除，由属性面板「环境 → 地面」控制显示 / 隐藏与颜色）</li>
+      <li>一个示例方块，位于 <code>(0, 1, 0)</code>，颜色为品牌蓝</li>
+      <li>轨道相机初始位置 <code>(8, 8, 12)</code></li>
+    </ul>
+  </section>
+
+  <!-- ============ 4. 功能需求 P0 ============ -->
+  <section id="sec-4">
+    <h2>4. 功能需求（P0 · MVP 闭环）</h2>
+    <p>
+      本章按<strong>模块</strong>组织，覆盖 P0 最小可用路径。每条需求标注触发条件、处理规则、结果与状态变更。
+    </p>
+
+    <!-- 模块 4.1 -->
+    <h3>4.1 Canvas 场景视图</h3>
+    <table>
+      <thead><tr><th style="width:120px;">维度</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Purpose</strong></td><td>用户看到并操作 3D 世界的主画布</td></tr>
+        <tr><td><strong>Layout</strong></td><td>居中占满编辑器主区域（左侧 240px + 右侧 260px 之外的全部空间），带阴影和圆角边框</td></tr>
+        <tr><td><strong>Trigger</strong></td><td>编辑器页面加载即渲染，无需用户额外操作</td></tr>
+        <tr>
+          <td><strong>Processing</strong></td>
+          <td>
+            <ul>
+              <li>使用 WebGL 渲染器，开启抗锯齿与阴影映射</li>
+              <li>相机使用透视投影，初始 fov = 50</li>
+              <li>OrbitControls 默认启用，支持左键旋转、右键平移、滚轮缩放</li>
+              <li>滚轮缩放上下限：距离相机 3 ~ 60 个世界单位</li>
+              <li>极角限制：相机始终在地平面上方，不允许翻到地下</li>
+            </ul>
+          </td>
+        </tr>
+        <tr><td><strong>Result</strong></td><td>场景可见，用户可以自由观察但不会误翻到地下</td></tr>
+        <tr><td><strong>Exceptions</strong></td><td>WebGL 不可用时显示一张提示卡片，告知"当前浏览器不支持 WebGL"</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 模块 4.2 -->
+    <h3>4.2 内置几何体（Primitive）</h3>
+    <p>
+      P0 提供 5 种基础几何体。每种几何体有默认颜色、默认初始位置，添加即选中。
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:140px;">类型</th>
+          <th style="width:80px;">标识</th>
+          <th style="width:100px;">默认尺寸</th>
+          <th style="width:100px;">默认颜色</th>
+          <th>默认初始位置</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>长方体</td><td><code>box</code></td><td>1 × 1 × 1</td><td>#6366f1 蓝</td><td>(0, 1, 0)</td></tr>
+        <tr><td>球体</td><td><code>sphere</code></td><td>半径 0.5</td><td>#f59e0b 橙</td><td>(0, 1, 0)</td></tr>
+        <tr><td>圆柱</td><td><code>cylinder</code></td><td>半径 0.5，高 1</td><td>#10b981 绿</td><td>(0, 1, 0)</td></tr>
+        <tr><td>圆锥</td><td><code>cone</code></td><td>半径 0.5，高 1</td><td>#ef4444 红</td><td>(0, 1, 0)</td></tr>
+        <tr><td>圆环</td><td><code>torus</code></td><td>主半径 0.4，管半径 0.15</td><td>#8b5cf6 紫</td><td>(0, 1, 0)</td></tr>
+      </tbody>
+    </table>
+    <div class="callout callout-info">
+      <strong>扩展提示：</strong>P1 继续加类型时（tetrahedron、octahedron、plane、ring…），只扩展枚举和默认值映射表，不改核心逻辑。
+    </div>
+    <div class="callout callout-info">
+      <strong>静态版注：</strong>资源库 UI 已直接铺出全部 11 种几何体卡片与「导入模型」卡片；上表仅列 P0 五种的默认参数，P1 六种类型的默认参数在实装时补齐（DEV-PLAN #12）。
+    </div>
+
+    <!-- 模块 4.3 -->
+    <h3>4.3 添加对象</h3>
+    <table>
+      <thead><tr><th style="width:120px;">维度</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Purpose</strong></td><td>把一个新几何体放入场景</td></tr>
+        <tr><strong>Trigger</strong></td><td>用户在左侧「资源库」点击一个几何体卡片</td></tr>
+        <tr>
+          <td><strong>Processing</strong></td>
+          <td>
+            <ol>
+              <li>生成唯一 <code>id</code>（规则：<code>obj_</code> + 8 位随机十六进制）</li>
+              <li>根据类型查默认值映射表，填充 color / position / rotation / scale</li>
+              <li>name 字段自动生成为：<code>{中文名} {场景内同类型计数 + 1}</code>，如"球体 1"、"球体 2"</li>
+              <li>写入 store，同时创建一条 HistoryEntry（<a href="#sec-7">见第 7 节共享规则</a>）</li>
+            </ol>
+          </td>
+        </tr>
+        <tr><td><strong>Result</strong></td><td>新对象立刻出现在场景中，被自动选中，Gizmo 绑定到该对象</td></tr>
+        <tr><td><strong>Exceptions</strong></td><td>同类型计数为 0 时从 1 开始，不出现"球体 0"</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 模块 4.4 -->
+    <h3>4.4 选中与取消选中</h3>
+    <table>
+      <thead><tr><th style="width:160px;">触发方式</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td>点击场景中的几何体</td><td>该对象成为当前选中，其他对象取消选中</td></tr>
+        <tr><td>点击锁定（<code>locked</code>）的对象</td><td><strong>静态版新增字段，拾取行为待实装：</strong>视口拾取跳过锁定对象、不改变选中；只能通过对象列表选中它（解锁入口）</td></tr>
+        <tr><td>点击左侧对象列表的某一行</td><td>同上；若对象被标记为不可见，则不响应画布点击，但仍可通过列表选中</td></tr>
+        <tr><td>点击画布空白处</td><td>清空选中，Gizmo 消失</td></tr>
+        <tr><td>按 <code>Esc</code></td><td>清空选中，Gizmo 消失</td></tr>
+        <tr><td>点击「资源库」卡片（添加对象）</td><td>新添加的对象自动成为选中</td></tr>
+      </tbody>
+    </table>
+    <p>
+      <strong>选中的视觉反馈：</strong>被选中的对象材质 emissive 通道会有一个低频脉冲发光（频率 ≈ 0.64 Hz，emissiveIntensity 在 0.03 ~ 0.23 之间缓动），帮助用户在场景中定位当前选中。
+    </p>
+
+    <!-- 模块 4.5 -->
+    <h3>4.5 Gizmo 变换（TransformControls）</h3>
+    <table>
+      <thead><tr><th style="width:120px;">维度</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Purpose</strong></td><td>让用户通过拖拽来调整对象的 position / rotation / scale</td></tr>
+        <tr><strong>Trigger</strong></td><td>场景中存在选中对象时，Gizmo 自动显示并绑定到该对象</td></tr>
+        <tr>
+          <td><strong>Processing</strong></td>
+          <td>
+            <ul>
+              <li>Gizmo 三种模式：<strong>平移</strong>（箭头）、<strong>旋转</strong>（圆环）、<strong>缩放</strong>（方块）</li>
+              <li>模式切换：点击顶部工具栏的对应按钮，全局同一时刻只有一个模式生效</li>
+              <li>拖动 Gizmo 时，对象的 position / rotation / scale 实时变化</li>
+              <li>属性面板中的数值显示随拖动同步刷新（双向绑定）</li>
+              <li>松开鼠标那一刻，生成一条 HistoryEntry（撤销的粒度是"一次完整的拖拽"，不是每帧一个快照）</li>
+            </ul>
+          </td>
+        </tr>
+        <tr><td><strong>Result</strong></td><td>用户通过拖拽 Gizmo 看到对象移动/旋转/缩放，并能通过属性面板精确读数</td></tr>
+        <tr>
+          <td><strong>Exceptions</strong></td>
+          <td>
+            <ul>
+              <li>缩放模式下，对象的 scale 不允许变成负数（镜像翻转）— 拖动向下限夹紧到 0.01</li>
+              <li>Gizmo 激活期间暂停 OrbitControls 的拖拽旋转，避免两者冲突</li>
+            </ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 模块 4.6 -->
+    <h3>4.6 属性面板</h3>
+    <p>
+      属性面板<strong>只在有选中对象时显示</strong>；未选中则显示"选中对象以编辑属性"的空状态提示。
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:150px;">字段</th>
+          <th style="width:90px;">类型</th>
+          <th style="width:90px;">默认值</th>
+          <th>交互与校验规则</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>名称 <code>name</code></td><td>文本</td><td>"{类型中文名} {序号}"</td><td>任意字符串，长度 1 ~ 64；实时可编辑</td></tr>
+        <tr><td>颜色 <code>color</code></td><td>色板选择</td><td>按类型查表</td><td>十六进制 <code>#RRGGBB</code>；点击色板弹出系统取色器</td></tr>
+        <tr><td>位置 <code>position</code></td><td>三元数字 (X, Y, Z)</td><td>(0, 1, 0)</td><td>每个输入框 step = 0.01；空值不允许提交</td></tr>
+        <tr><td>旋转 <code>rotation</code></td><td>三元数字 (X, Y, Z)</td><td>(0, 0, 0)</td><td>单位为弧度；输入值直接覆盖 rotation；不做归一化</td></tr>
+        <tr><td>缩放 <code>scale</code></td><td>三元数字 (X, Y, Z)</td><td>(1, 1, 1)</td><td>step = 0.1；下限 0.01，不允许 0 或负数</td></tr>
+        <tr><td>可见 <code>visible</code></td><td>复选框</td><td>true</td><td>取消后对象不渲染，但仍在列表中</td></tr>
+        <tr><td>锁定 <code>locked</code></td><td>复选框</td><td>false</td><td><strong>静态版新增。</strong>锁定后：视口点击拾取跳过、全选 / 框选排除、删除前需先解锁；列表内仍可选中（解锁入口）；选中的锁定对象不显示 Gizmo</td></tr>
+      </tbody>
+    </table>
+    <p>
+      字段的<strong>轴向颜色约定</strong>（与 Gizmo 保持一致）：X = 红、Y = 绿、Z = 蓝。
+    </p>
+
+    <!-- 模块 4.7 -->
+    <h3>4.7 左侧对象列表</h3>
+    <p>
+      左侧栏两个 Tab：<strong>资源库</strong>（添加）和 <strong>场景</strong>（管理已有对象）。场景 Tab 顶部有<strong>搜索框</strong>按名称过滤对象（静态版已铺 UI，过滤逻辑见 DEV-PLAN 阶段 2.5）。对象列表每条包含：
+    </p>
+    <ul>
+      <li>拖拽排序把手 — 行首，hover 显示（排序见 5.4；静态版已铺 UI）</li>
+      <li>可见性复选框 — 勾选控制 <code>visible</code> 字段</li>
+      <li>颜色圆点 — 显示对象当前颜色</li>
+      <li>对象名称 — 可点击选中</li>
+      <li>锁定图标 — 已锁定常显（琥珀色）、未锁定 hover 显示开锁样式；点击切换 <code>locked</code>（静态版新增，切换行为待实装）</li>
+      <li>两个图标按钮：<strong>复制 (⧉)</strong> 和 <strong>删除 (✕)</strong> — hover 或选中时出现</li>
+    </ul>
+    <table>
+      <thead><tr><th style="width:140px;">操作</th><th>处理规则</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>复制</strong></td>
+          <td>生成新 <code>id</code>，新对象的 name 为 <code>{原名称} 副本</code>，position 相对原对象在 X / Z 方向各偏移 +1，自动成为选中</td>
+        </tr>
+        <tr>
+          <td><strong>删除</strong></td>
+          <td>从 store 中移除；若被删除的是当前选中，则选中清空；生成一条 HistoryEntry</td>
+        </tr>
+        <tr>
+          <td><strong>全部清空</strong>（顶部工具栏）</td>
+          <td>弹出二次确认"确定要清空整个场景吗？此操作可通过撤销恢复"；确认后场景重置为默认场景</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 模块 4.8 -->
+    <h3>4.8 撤销 / 重做</h3>
+    <table>
+      <thead><tr><th style="width:140px;">操作</th><th>触发方式</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>撤销</td><td><code>Ctrl+Z</code> 或工具栏按钮</td><td>回退到上一条 HistoryEntry；按钮/快捷键在 historyIndex = 0 时禁用</td></tr>
+        <tr><td>重做</td><td><code>Ctrl+Y</code> 或 <code>Ctrl+Shift+Z</code> 或工具栏按钮</td><td>前进到下一条 HistoryEntry；在 historyIndex = 末尾 时禁用</td></tr>
+        <tr><td>历史截断</td><td>（内部规则）</td><td>在 historyIndex 之后发生新的可撤销操作时，丢弃所有 redo 分支</td></tr>
+      </tbody>
+    </table>
+    <p>
+      以下动作<strong>不产生</strong>历史快照（属于"视图状态"，撤销没有意义）：改变相机视角、切换 Gizmo 模式、切换资源库 / 场景 Tab。
+    </p>
+
+    <!-- 模块 4.9 -->
+    <h3>4.9 保存 / 导入 / 导出（JSON）</h3>
+    <table>
+      <thead><tr><th style="width:140px;">操作</th><th>触发方式</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td><strong>导出 JSON</strong></td><td>工具栏「保存」按钮 → 弹出菜单选「导出 JSON」</td><td>把当前 Scene 序列化为 JSON 文件，触发浏览器下载，文件名默认 <code>scene-{时间戳}.json</code></td></tr>
+        <tr><td><strong>导入 JSON</strong></td><td>工具栏「打开」按钮 → 选择本地 JSON 文件</td><td>读取文件，校验 schema；校验通过 → 用导入内容<strong>替换</strong>当前场景，并清空历史（因为是全新会话）</td></tr>
+        <tr><td><strong>校验失败</strong></td><td>导入 JSON 不符合 schema</td><td>弹窗告知"文件格式不正确或版本不匹配"，不修改当前场景</td></tr>
+        <tr><td><strong>自动保存到 localStorage</strong></td><td>每次产生历史快照时</td><td>后台静默写入 <code>editor.autosave</code> key；页面下次打开时检测到 autosave 存在则询问"恢复上次编辑的场景？"</td></tr>
+      </tbody>
+    </table>
+    <p>
+      JSON schema 的顶层结构，版本号用于未来兼容：
+    </p>
+    <div class="ascii-flow">
+      {
+        "version": "1.1",                // schema 版本号，必填
+        "objects": [
+          {
+            "id": "obj_a1b2c3",         // 唯一 id
+            "name": "示例方块",
+            "type": "box",              // PrimitiveType
+            "position": [0, 1, 0],
+            "rotation": [0, 0, 0],      // 弧度
+            "scale": [1, 1, 1],
+            "color": "#6366f1",
+            "visible": true,
+            "locked": false             // 静态版新增
+          },
+          ...
+        ],
+        "environment": {                // 环境
+          "sky": "day",                 // 预设，非必填
+          "grid": true,
+          "shadow": true,
+          "ground": { "visible": true, "color": "#475569" }  // 地板环境元素（静态版：由环境区控制）
+        }
+      }
+    </div>
+  </section>
+
+  <!-- ============ 5. P1 ============ -->
+  <section id="sec-5">
+    <h2>5. 功能需求（P1 · 效率与场景丰富）</h2>
+    <p>
+      P1 需求<strong>不在 P0 评审范围内</strong>，这里用于划定扩展方向。每条标注 <span class="badge badge-p1">P1</span>。
+    </p>
+
+    <h3>5.1 扩展几何体类型</h3>
+    <table>
+      <thead>
+        <tr><th>类型</th><th>标识</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>四面体</td><td><code>tetrahedron</code></td><td>正四面体，可做钻石/晶体</td></tr>
+        <tr><td>八面体</td><td><code>octahedron</code></td><td>双金字塔，可做钻石</td></tr>
+        <tr><td>平面</td><td><code>plane</code></td><td>可作地面/墙面的基础，默认 rotation = (π/2, 0, 0)</td></tr>
+        <tr><td>圆环（Ring）</td><td><code>ring</code></td><td>扁平圆环，适合 UI / 装饰</td></tr>
+        <tr><td>圆环结（TorusKnot）</td><td><code>torus-knot</code></td><td>参数化结形，适合视觉装饰</td></tr>
+        <tr><td>胶囊（Capsule）</td><td><code>capsule</code></td><td>圆柱 + 半球端，适合角色身体</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.2 完整快捷键体系</h3>
+    <table>
+      <thead><tr><th style="width:120px;">快捷键</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td><code>Ctrl+D</code></td><td>复制当前选中对象</td></tr>
+        <tr><td><code>Ctrl+A</code></td><td>全选（P1 支持多选）</td></tr>
+        <tr><td><code>Delete</code> / <code>Backspace</code></td><td>删除当前选中（在输入框内时不触发）</td></tr>
+        <tr><td><code>W / E / R</code></td><td>快速切换 Gizmo 模式：W=平移、E=旋转、R=缩放</td></tr>
+        <tr><td>方向键 ↑ ↓ ← →</td><td>在平移模式下每次移动 0.1 个世界单位</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.3 材质类型切换</h3>
+    <p>
+      P0 所有对象使用 <code>MeshStandardMaterial</code>。P1 允许在属性面板中切换材质类型，并暴露与该材质相关的字段。
+    </p>
+    <table>
+      <thead><tr><th>材质</th><th>暴露的字段</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>MeshBasicMaterial</code></td><td>color, wireframe</td><td>不受光照影响，适合做发光/装饰</td></tr>
+        <tr><td><code>MeshPhongMaterial</code></td><td>color, shininess, specular</td><td>Phong 高光，适合塑料/橡胶感</td></tr>
+        <tr><td><code>MeshStandardMaterial</code></td><td>color, metalness, roughness</td><td>PBR，通用</td></tr>
+        <tr><td><code>MeshNormalMaterial</code></td><td>flatShading</td><td>用于调试法线方向</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.4 对象列表排序与拖拽</h3>
+    <p>
+      P1 允许在对象列表中<strong>拖拽排序</strong>；场景渲染顺序不受列表顺序影响，但列表顺序会影响后续功能（分组、层级）的阅读顺序。拖拽产生 HistoryEntry。
+    </p>
+
+    <h3>5.5 环境预设</h3>
+    <p>
+      属性面板顶部增加一个<strong>全局环境设置区</strong>，允许用户切换天空与地面风格：
+    </p>
+    <table>
+      <thead><tr><th>预设</th><th>sky</th><th>grid</th><th>shadow</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>日间</td><td>Sun + Sky shader</td><td>显示</td><td>启用</td><td>默认</td></tr>
+        <tr><td>夜晚</td><td>深色渐变背景 + 暗方向光</td><td>显示</td><td>启用</td><td>冷色调</td></tr>
+        <tr><td>工作室</td><td>纯色浅灰</td><td>隐藏</td><td>启用</td><td>无干扰、专注对象</td></tr>
+        <tr><td>无</td><td>透明</td><td>隐藏</td><td>禁用</td><td>纯 RGB 通道，便于导出</td></tr>
+      </tbody>
+    </table>
+    <p>
+      <strong>静态版补充：</strong>环境区还包含<strong>地面</strong>配置行（显示 / 隐藏复选框 + 颜色选择器），已随静态 UI 实装并实际生效；四个预设的切换逻辑待实装（DEV-PLAN #11）。
+    </p>
+  </section>
+
+  <!-- ============ 6. P2 ============ -->
+  <section id="sec-6">
+    <h2>6. 功能需求（P2 · 进阶能力）</h2>
+    <p>
+      P2 需求为方向性描述，暂不进入任何当前迭代。每条标注 <span class="badge badge-p2">P2</span>。
+    </p>
+
+    <h3>6.1 导入外部模型（GLB / GLTF）</h3>
+    <p>
+      在「资源库」增加一个 <strong>📁 导入模型</strong> 卡片，点击后弹出文件选择器，只接受 <code>.glb</code> / <code>.gltf</code>。导入的模型作为一个 SceneObject，type 为 <code>model</code>，属性面板支持显示 bounding box 尺寸、缩放、rotation，但<strong>不支持</strong>材质级别的属性编辑（那个需要更深的资产管线）。
+    </p>
+
+    <h3>6.2 多选与批量操作</h3>
+    <ul>
+      <li><code>Ctrl+点击</code> 多选；<code>Shift+点击</code> 范围多选</li>
+      <li>选中多个对象时，Gizmo 以"组"为单位进行变换（通过一个 invisible parent group 包装）</li>
+      <li>属性面板显示"已选中 N 个对象"，允许批量修改 color / visible</li>
+    </ul>
+
+    <h3>6.3 分组 / 父子层级</h3>
+    <p>
+      对象列表变成树形结构。父对象的变换会级联到子对象，但子对象的变换保持自身局部坐标系。分组产生一条 HistoryEntry。
+    </p>
+
+    <h3>6.4 时间轴动画</h3>
+    <p>
+      底部增加一个时间轴区域。用户可以给某个对象在时间点 t1 设定一组关键帧（position / rotation / scale / color），在 t2 设定另一组，编辑器自动插值。关键帧数据写进 JSON schema 的新字段 <code>animations</code>。
+      <strong>静态版已铺 UI：</strong>多轨行（每对象一条轨道）、0–5s 刻度、播放头（静态位置 + 三角帽）、「时长 5s · 1×」标注；数据与插值逻辑按 DEV-PLAN #20 实装。
+    </p>
+
+    <h3>6.5 渲染导出</h3>
+    <ul>
+      <li><strong>PNG 截图</strong>：把当前 canvas 内容导出为 <code>.png</code></li>
+      <li><strong>静态 HTML</strong>：生成一个独立的 <code>scene.html</code> + 内嵌 JSON + 最小化 Three.js CDN 引用，双击即可在浏览器打开</li>
+      <li><strong>透明背景</strong>：导出时可选"PNG 带透明背景"，强制关闭 sky / grid / shadow</li>
+    </ul>
+  </section>
+
+  <!-- ============ 7. 共享规则 ============ -->
+  <section id="sec-7">
+    <h2>7. 共享规则与异常处理</h2>
+
+    <h3>7.1 历史快照触发规则（canonical）</h3>
+    <table>
+      <thead>
+        <tr><th>动作</th><th>是否产生快照</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>添加 / 删除 / 复制对象</td><td>✅ 是</td><td>操作完成后立即 push</td></tr>
+        <tr><td>Gizmo 拖拽（平移 / 旋转 / 缩放）</td><td>✅ 是</td><td>只在 mouseup 那一刻 push，不是每帧</td></tr>
+        <tr><td>属性面板字段修改</td><td>✅ 是</td><td>blur / 回车 时 push（避免每次按键都产生快照）</td></tr>
+        <tr><td>清空场景</td><td>✅ 是</td><td>确认后 push</td></tr>
+        <tr><td>改变相机视角</td><td>❌ 否</td><td>视图状态，不属于场景数据</td></tr>
+        <tr><td>切换 Gizmo 模式</td><td>❌ 否</td><td>UI 工具状态</td></tr>
+        <tr><td>切换资源库 / 场景 Tab</td><td>❌ 否</td><td>UI 工具状态</td></tr>
+        <tr><td>勾选 / 取消可见性</td><td>✅ 是</td><td>属于场景数据变化</td></tr>
+        <tr><td>导入 JSON</td><td>❌ 否</td><td>导入即新会话，重置历史</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.2 对象 ID 生成规则</h3>
+    <ul>
+      <li>格式：<code>obj_</code> + 8 位小写十六进制（例如 <code>obj_a1b2c3d4</code>）</li>
+      <li>生成时机：对象被添加到 store 的那一刻</li>
+      <li>唯一性保证：同一 runtime 内冲突概率可忽略；导入 JSON 时以文件中 id 为准，不重新生成</li>
+    </ul>
+
+    <h3>7.3 坐标系与单位</h3>
+    <table>
+      <tbody>
+        <tr><td>坐标系</td><td>右手坐标系（Three.js 默认）</td></tr>
+        <tr><td>单位</td><td>1 世界单位 = 任意，不作物理含义映射；网格每格 = 1 单位</td></tr>
+        <tr><td>旋转顺序</td><td>Y-X-Z（Three.js Euler 默认）</td></tr>
+        <tr><td>旋转单位</td><td>弧度；属性面板显示弧度值，不做度/弧度切换</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.4 所有弹窗与二次确认</h3>
+    <table>
+      <thead><tr><th>操作</th><th>是否二次确认</th><th>弹窗文案</th></tr></thead>
+      <tbody>
+        <tr><td>清空场景</td><td>✅</td><td>"确定要清空整个场景吗？此操作可通过撤销恢复。"</td></tr>
+        <tr><td>导入 JSON（会替换当前场景）</td><td>✅</td><td>"导入将替换当前未保存的场景，继续？"</td></tr>
+        <tr><td>关闭页面时有未保存修改</td><td>✅</td><td>浏览器原生弹窗："离开后更改将丢失"</td></tr>
+        <tr><td>删除单个对象</td><td>❌</td><td>—— 可撤销，无需确认</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.5 浏览器兼容性</h3>
+    <table>
+      <thead><tr><th>环境</th><th>要求</th></tr></thead>
+      <tbody>
+        <tr><td>桌面浏览器</td><td>Chrome 90+ / Edge 90+ / Firefox 88+ / Safari 14+</td></tr>
+        <tr><td>GPU</td><td>需要支持 WebGL2（Chrome 113 起默认开启）</td></tr>
+        <tr><td>移动端</td><td>P0 不保证可用；小屏触控与 OrbitControls 手势冲突待 P2 评估</td></tr>
+      </tbody>
+    </table>
+    <div class="callout callout-warn">
+      <strong>降级处理：</strong>用户浏览器不支持 WebGL 时，画布区域显示一张友好的提示卡片，告知"当前浏览器无法运行 3D 编辑器，请升级或更换浏览器"，同时其他 UI（属性面板、工具栏）仍正常渲染，但处于禁用状态。
+    </div>
+  </section>
+
+  <!-- ============ 8. 开放问题 ============ -->
+  <section id="sec-8">
+    <h2>8. 开放问题</h2>
+
+    <table>
+      <thead>
+        <tr><th style="width:40px;">#</th><th>问题</th><th>影响阶段</th><th>状态</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Q1</td><td>P0 是否需要内置"场景截图"功能？还是把它推到 P2 的静态 HTML 渲染里？</td><td>P0 / P2</td><td><span class="badge badge-p0">P0 评审前决定</span></td></tr>
+        <tr><td>Q2</td><td>是否需要在 P0 支持多材质切换，还是只在 P1 加？（当前 PRD 写的是 P1 加）</td><td>P0 / P1</td><td><span class="badge badge-p1">留给 P1 评审</span></td></tr>
+        <tr><td>Q3</td><td>"按名称精确搜索/过滤对象" — 放 P1 还是 P2？</td><td>P1 / P2</td><td><span class="badge badge-p1">P1 评审时决定</span></td></tr>
+        <tr><td>Q4</td><td>未来是否考虑 URL 中携带 scene JSON（短场景可 base64 塞进 URL），实现"分享当前场景"？</td><td>P2+</td><td><span class="badge badge-p2">方向性问题</span></td></tr>
+        <tr><td>Q5</td><td>移动端触控（手机/平板）是否有明确需求来源？若无，继续维持"不承诺可用"。</td><td>全期</td><td><span class="badge badge-p0">等待产品侧确认</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 页脚 ============ -->
+  <footer class="footer">
+    <div class="decision-log">
+      <span>✓ 单用户本地优先</span>
+      <span>✓ P0/P1/P2 清晰边界</span>
+      <span>✓ 排除建模/物理/多人协作</span>
+      <span>✓ WebGL 不支持时有降级</span>
+    </div>
+    <div style="margin-top:8px;">
+      PRD-3DE-2026-01 · v1.0 · 3D 场景编辑器
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
