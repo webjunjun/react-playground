@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages 项目站点路径：https://<user>.github.io/react-playground/
+  base: '/react-playground/',
   plugins: [react()],
   resolve: {
     alias: {

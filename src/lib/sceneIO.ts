@@ -1,9 +1,9 @@
+import type { Vector3Tuple } from 'three'
 import type {
   EnvironmentKey,
   GroundConfig,
   PrimitiveType,
   SceneObject,
-  Vector3Tuple,
 } from '@/types/editor'
 
 /** JSON schema 版本号（PRD 4.9） */
