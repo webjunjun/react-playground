@@ -414,7 +414,7 @@
               <li>使用 WebGL 渲染器，开启抗锯齿与阴影映射</li>
               <li>相机默认使用透视投影，初始 fov = 50，位置 <code>(8, 8, 12)</code></li>
               <li>视角切换：<strong>透视 / 前 / 顶 / 右</strong>四个预设；后三者使用正交相机（前视沿 -Z、顶视沿 -Y、右视沿 -X）</li>
-              <li>着色切换：<strong>实体</strong>（meshStandardMaterial）/ <strong>线框</strong>（同一材质加 wireframe），只作用于用户对象，不影响天空 / 网格 / 地面</li>
+              <li>着色切换：<strong>实体</strong>（使用各对象当前材质）/ <strong>线框</strong>（强制各对象当前材质启用 wireframe），只作用于用户对象，不影响天空 / 网格 / 地面</li>
               <li>OrbitControls 默认启用，支持左键旋转、右键平移、滚轮缩放；切换正交视角后仍可旋转缩放（跟随当前 default camera）</li>
               <li>滚轮缩放上下限：距离相机 3 ~ 60 个世界单位</li>
               <li>极角限制：相机始终在地平面上方，不允许翻到地下</li>
@@ -453,7 +453,7 @@
       <strong>扩展提示：</strong>P1 继续加类型时（tetrahedron、octahedron、plane、ring…），只扩展枚举和默认值映射表，不改核心逻辑。
     </div>
     <div class="callout callout-info">
-      <strong>静态版注：</strong>资源库 UI 已直接铺出全部 11 种几何体卡片与「导入模型」卡片；上表仅列 P0 五种的默认参数，P1 六种类型的默认参数在实装时补齐（DEV-PLAN #12）。
+      <strong>P1 默认值：</strong>资源库已铺出全部 11 种几何体卡片；六种扩展类型的默认 color / position / rotation / scale 已补齐，统一由默认值映射表消费，参数见 5.1（DEV-PLAN #12）。
     </div>
 
     <!-- 模块 4.3 -->
@@ -565,7 +565,7 @@
       左侧栏两个 Tab：<strong>资源库</strong>（添加）和 <strong>场景</strong>（管理已有对象）。场景 Tab 顶部有<strong>搜索框</strong>，按对象名称实时过滤（大小写不敏感、子串匹配，边输边过滤，清空即恢复全量）；过滤是渲染层派生数据，不写入 store、不产生历史快照。对象列表每条包含：
     </p>
     <ul>
-      <li>拖拽排序把手 — 行首，hover 显示（排序见 5.4；静态版已铺 UI）</li>
+      <li>拖拽排序把手 — 行首，hover 显示（排序见 5.4；已实装，搜索过滤时禁用）</li>
       <li>可见性复选框 — 受控绑定 <code>visible</code>，切换即时生效并产生历史快照</li>
       <li>颜色圆点 — 显示对象当前颜色</li>
       <li>对象名称 — 可点击选中</li>
@@ -573,10 +573,10 @@
       <li>两个图标按钮：<strong>复制 (⧉)</strong> 和 <strong>删除 (✕)</strong> — hover 或选中时出现；锁定对象的删除按钮置灰</li>
     </ul>
     <p>
-      <strong>右键菜单（已实装）：</strong>在列表项上右键唤出自定义菜单（非浏览器原生），同时选中该对象。菜单项为：<strong>重命名</strong> / <strong>复制</strong> / <strong>锁定（或解锁）</strong> / <strong>删除</strong>（锁定时禁用）。点击菜单外区域或按 <code>Esc</code> 关闭。
+      <strong>右键菜单（已实装）：</strong>在列表项上右键唤出自定义菜单（非浏览器原生），同时选中该对象。菜单项为：<strong>重命名</strong> / <strong>复制</strong> / <strong>成组</strong>（禁用占位，行为见 6.3）/ <strong>锁定（或解锁）</strong> / <strong>删除</strong>（锁定时禁用）。点击菜单外区域或按 <code>Esc</code> 关闭。
     </p>
     <p>
-      <strong>重命名：</strong>点击「重命名」弹出居中输入弹窗（非浏览器 <code>prompt</code>），打开即聚焦并全选原名；<code>Enter</code> / 确定提交，<code>Esc</code> / 取消 / 点遮罩放弃。名称 trim 后非空且与原名不同才写回，并产生一条历史快照。
+      <strong>重命名：</strong>点击「重命名」弹出居中输入弹窗（非浏览器 <code>prompt</code>），打开即聚焦；<code>Enter</code> / 确定提交，<code>Esc</code> / 取消 / 点遮罩放弃。名称 trim 后非空且与原名不同才写回，并产生一条历史快照。
     </p>
     <table>
       <thead><tr><th style="width:140px;">操作</th><th>处理规则</th></tr></thead>
@@ -627,7 +627,7 @@
     </p>
     <div class="ascii-flow">
       {
-        "version": "1.1",                // schema 版本号，必填
+        "version": "1.2",                // schema 版本号，必填
         "objects": [
           {
             "id": "obj_a1b2c3",         // 唯一 id
@@ -637,6 +637,15 @@
             "rotation": [0, 0, 0],      // 弧度
             "scale": [1, 1, 1],
             "color": "#6366f1",
+            "material": {
+              "type": "standard",
+              "wireframe": false,
+              "shininess": 30,
+              "specular": "#ffffff",
+              "metalness": 0.1,
+              "roughness": 0.5,
+              "flatShading": false
+            },
             "visible": true,
             "locked": false             // 静态版新增
           },
@@ -667,12 +676,29 @@
       <tbody>
         <tr><td>四面体</td><td><code>tetrahedron</code></td><td>正四面体，可做钻石/晶体</td></tr>
         <tr><td>八面体</td><td><code>octahedron</code></td><td>双金字塔，可做钻石</td></tr>
-        <tr><td>平面</td><td><code>plane</code></td><td>可作地面/墙面的基础，默认 rotation = (π/2, 0, 0)</td></tr>
+        <tr><td>平面</td><td><code>plane</code></td><td>可作地面/墙面的基础，默认正面朝上</td></tr>
         <tr><td>圆环（Ring）</td><td><code>ring</code></td><td>扁平圆环，适合 UI / 装饰</td></tr>
         <tr><td>圆环结（TorusKnot）</td><td><code>torus-knot</code></td><td>参数化结形，适合视觉装饰</td></tr>
         <tr><td>胶囊（Capsule）</td><td><code>capsule</code></td><td>圆柱 + 半球端，适合角色身体</td></tr>
       </tbody>
     </table>
+    <h4>默认出厂参数（DEV-PLAN #12）</h4>
+    <table>
+      <thead>
+        <tr><th>类型</th><th>标识</th><th>position</th><th>rotation</th><th>scale</th><th>color</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>四面体</td><td><code>tetrahedron</code></td><td><code>(0, 1, 0)</code></td><td><code>(0, 0, 0)</code></td><td><code>(1, 1, 1)</code></td><td><code>#14b8a6</code></td></tr>
+        <tr><td>八面体</td><td><code>octahedron</code></td><td><code>(0, 1, 0)</code></td><td><code>(0, 0, 0)</code></td><td><code>(1, 1, 1)</code></td><td><code>#0ea5e9</code></td></tr>
+        <tr><td>平面</td><td><code>plane</code></td><td><code>(0, 0.01, 0)</code></td><td><code>(-π/2, 0, 0)</code></td><td><code>(1, 1, 1)</code></td><td><code>#94a3b8</code></td></tr>
+        <tr><td>圆环（Ring）</td><td><code>ring</code></td><td><code>(0, 0.01, 0)</code></td><td><code>(-π/2, 0, 0)</code></td><td><code>(1, 1, 1)</code></td><td><code>#ec4899</code></td></tr>
+        <tr><td>圆环结（TorusKnot）</td><td><code>torus-knot</code></td><td><code>(0, 1, 0)</code></td><td><code>(0, 0, 0)</code></td><td><code>(1, 1, 1)</code></td><td><code>#a855f7</code></td></tr>
+        <tr><td>胶囊（Capsule）</td><td><code>capsule</code></td><td><code>(0, 1, 0)</code></td><td><code>(0, 0, 0)</code></td><td><code>(1, 1, 1)</code></td><td><code>#f97316</code></td></tr>
+      </tbody>
+    </table>
+    <p>
+      立体类型沿用 P0 的 <code>y=1</code>；平面类以 <code>y=0.01</code> 贴地，<code>rotation.x=-π/2</code> 使正面朝上。添加对象与 Vec3 重置统一读取 <code>PRIMITIVE_DEFAULTS</code>，不维护第二份默认值；几何尺寸与段数不属于本项。
+    </p>
 
     <h3>5.2 完整快捷键体系</h3>
     <table>
@@ -683,7 +709,7 @@
         <tr><td><code>Ctrl+D</code></td><td>复制当前选中对象（已实装）</td></tr>
         <tr><td><code>Ctrl+Z</code></td><td>撤销（已实装）</td></tr>
         <tr><td><code>Ctrl+Y</code> / <code>Ctrl+Shift+Z</code></td><td>重做（已实装）</td></tr>
-        <tr><td><code>?</code>（<code>Shift+/</code>）</td><td>打开快捷键帮助浮层；<code>Esc</code> / 点遮罩 / 再按一次关闭；输入态下不触发（已实装）</td></tr>
+        <tr><td><code>?</code>（<code>Shift+/</code>）</td><td>打开快捷键帮助浮层；<code>Esc</code> / 点遮罩关闭；输入态下不触发（已实装）</td></tr>
         <tr><td><code>Esc</code></td><td>关闭当前浮层 / 弹窗、关闭右键菜单（清空选中尚未实装）</td></tr>
         <tr><td><code>Ctrl+A</code></td><td>全选（P1 支持多选，未实装）</td></tr>
         <tr><td>方向键 ↑ ↓ ← →</td><td>在平移模式下每次移动 0.1 个世界单位（未实装）</td></tr>
@@ -695,7 +721,7 @@
 
     <h3>5.3 材质类型切换</h3>
     <p>
-      P0 所有对象使用 <code>MeshStandardMaterial</code>。P1 允许在属性面板中切换材质类型，并暴露与该材质相关的字段。<strong>当前状态：</strong>尚未实装；视图控制条的「实体 / 线框」是临时的全局着色开关，不改变对象的材质字段。
+      P0 所有对象使用 <code>MeshStandardMaterial</code>。P1 允许在属性面板中切换材质类型，并暴露与该材质相关的字段。<strong>当前状态：</strong>已完成；四种材质均驱动视口真实渲染，材质配置随对象保存、复制、撤销/重做及场景导入导出。
     </p>
     <table>
       <thead><tr><th>材质</th><th>暴露的字段</th><th>说明</th></tr></thead>
@@ -706,10 +732,28 @@
         <tr><td><code>MeshNormalMaterial</code></td><td>flatShading</td><td>用于调试法线方向</td></tr>
       </tbody>
     </table>
+    <p>
+      每个对象保存一份完整、扁平的 <code>material</code> 配置：<code>type / wireframe / shininess / specular / metalness / roughness / flatShading</code>。默认值依次为 <code>standard / false / 30 / #ffffff / 0.1 / 0.5 / false</code>。切换类型只修改 <code>type</code>，其他类型已调参数继续保留；对象副本深拷贝材质配置，互不影响。
+    </p>
+    <p>
+      对象顶层 <code>color</code> 保留给 Basic / Phong / Standard 使用；Normal 不显示对象颜色，颜色输入禁用但原值保留。面板仅显示当前材质字段：<code>shininess ≥ 0</code>、<code>metalness / roughness ∈ [0, 1]</code>。数字参数一次完整编辑在 blur / Enter 时提交一条历史，类型与 checkbox 切换立即各提交一条历史。
+    </p>
+    <p>
+      视图控制条的全局线框强制所有用户对象进入线框，不改写对象材质数据；切回实体后，Basic 自身的 <code>wireframe</code> 仍生效，但不会泄漏到 Phong / Standard / Normal。Normal 的 <code>flatShading</code> 切换即时重建材质着色器。
+    </p>
+    <p>
+      场景 JSON schema 升级为 <code>1.2</code>。读取 <code>1.1</code> 文件或自动草稿时，缺失的 <code>material</code> 自动补为默认 Standard；非法材质类型、颜色、非有限数值或越界参数均拒绝导入，且不修改当前场景。
+    </p>
 
     <h3>5.4 对象列表排序与拖拽</h3>
     <p>
-      P1 允许在对象列表中<strong>拖拽排序</strong>；场景渲染顺序不受列表顺序影响，但列表顺序会影响后续功能（分组、层级）的阅读顺序。拖拽产生 HistoryEntry。<strong>当前状态：</strong>拖拽把手 UI 已铺，排序逻辑尚未实装。
+      P1 允许在对象列表中<strong>拖拽排序</strong>；场景渲染顺序不受列表顺序影响，但列表顺序会影响后续功能（分组、层级）的阅读顺序。<strong>当前状态：</strong>已实装，待手动验收；仅重排 <code>objects</code> 数组，不修改对象属性，也不涉及父子层级。
+    </p>
+    <p>
+      仅行首把手可发起拖拽。目标行的上半部分表示插入其前，下半部分表示插入其后，并显示对应插入线；源行降低透明度。拖拽不改变当前选中，隐藏和锁定对象仍可排序。Esc 取消、拖出窗口或完成 drop 后清理全部拖拽视觉状态。
+    </p>
+    <p>
+      搜索过滤期间禁用拖拽，清空搜索后恢复，避免过滤视图的局部索引误排全量数组。拖到自身或相邻原位等顺序不变的落点不产生历史，也不覆盖自动草稿；每次有效排序只产生一条 HistoryEntry 并写一次自动草稿，可由 Ctrl+Z / Ctrl+Y 撤销与重做。
     </p>
 
     <h3>5.5 环境预设</h3>

@@ -13,7 +13,7 @@ import {
   Infinity as InfinityIcon,
   Pill,
 } from 'lucide-react'
-import type { PrimitiveType, SceneObject } from '@/types/editor'
+import type { MaterialConfig, PrimitiveType, SceneObject } from '@/types/editor'
 
 type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number; strokeWidth?: number }>
 
@@ -48,10 +48,21 @@ export interface PrimitiveDefaults {
   color: string
 }
 
+/** 新对象及旧版场景缺省时的材质默认值（PRD 5.3） */
+export const DEFAULT_MATERIAL: MaterialConfig = {
+  type: 'standard',
+  wireframe: false,
+  shininess: 30,
+  specular: '#ffffff',
+  metalness: 0.1,
+  roughness: 0.5,
+  flatShading: false,
+}
+
 /**
- * 类型默认值表（DEV-PLAN #2）
+ * 类型默认值表（DEV-PLAN #2 / #12）
  * P0 五种严格对齐 PRD 4.2 的默认颜色与初始位置；
- * P1 六种按各自几何尺寸落地放置（平面类贴地 y=0.01）
+ * P1 立体类型沿用 y=1；平面类贴地 y=0.01，rotation.x=-π/2 使正面朝上
  */
 export const PRIMITIVE_DEFAULTS: Record<PrimitiveType, PrimitiveDefaults> = {
   box: { position: [0, 1, 0], rotation: [0, 0, 0], scale: [1, 1, 1], color: '#6366f1' },
@@ -87,6 +98,7 @@ export const MOCK_OBJECTS: SceneObject[] = [
     rotation: [0, 0, 0],
     scale: [1, 1, 1],
     color: '#6366f1',
+    material: { ...DEFAULT_MATERIAL },
     visible: true,
     locked: false,
   },

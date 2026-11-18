@@ -14,6 +14,20 @@ export type PrimitiveType =
   | 'torus-knot'
   | 'capsule'
 
+/** 材质类型（PRD 5.3） */
+export type MaterialType = 'basic' | 'phong' | 'standard' | 'normal'
+
+/** 扁平材质配置：切换类型时保留所有参数，各材质仅读取自己支持的字段 */
+export interface MaterialConfig {
+  type: MaterialType
+  wireframe: boolean
+  shininess: number
+  specular: string
+  metalness: number
+  roughness: number
+  flatShading: boolean
+}
+
 /** 3D 对象在编辑器中的数据模型 */
 export interface SceneObject {
   id: string
@@ -23,6 +37,7 @@ export interface SceneObject {
   rotation: Vector3Tuple
   scale: Vector3Tuple
   color: string
+  material: MaterialConfig
   visible: boolean
   /** 锁定：视口拾取跳过 + 全选/框选排除 + 删除需先解锁；列表内仍可选中（解锁入口） */
   locked: boolean

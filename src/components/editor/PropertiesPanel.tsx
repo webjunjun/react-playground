@@ -2,6 +2,7 @@ import { Fragment, useRef, useState } from 'react'
 import { RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Vector3Tuple } from 'three'
 import { useEditorStore } from '@/store/editor'
+import type { MaterialConfig, MaterialType, SceneObject } from '@/types/editor'
 import { PRIMITIVE_DEFAULTS } from './presets'
 
 /** 环境预设（P1 5.5），默认日间 */
@@ -11,9 +12,6 @@ const ENV_PRESETS = [
   { key: 'studio', label: '工作室', sky: '纯色浅灰', grid: '隐藏', shadow: '启用' },
   { key: 'none', label: '无', sky: '透明', grid: '隐藏', shadow: '禁用' },
 ] as const
-
-/** 材质类型（P1 5.3），默认 Standard */
-type MaterialKey = 'basic' | 'phong' | 'standard' | 'normal'
 
 /**
  * 属性面板：选中对象、环境、地面读写 store；
@@ -99,6 +97,7 @@ export function PropertiesPanel() {
             <input
               type="color"
               value={object.color}
+              disabled={object.material.type === 'normal'}
               style={{ width: 60 }}
               onChange={(e) => updateObject(object.id, { color: e.target.value })}
               onBlur={() => commitHistory()}
@@ -193,7 +192,7 @@ export function PropertiesPanel() {
           </Field>
 
           {/* 材质（P1 5.3） */}
-          <MaterialSection />
+          <MaterialSection object={object} />
         </Fragment>
       )}
     </aside>
@@ -202,15 +201,40 @@ export function PropertiesPanel() {
 
 /* ==================== 材质区 ==================== */
 
-function MaterialSection() {
-  const [material, setMaterial] = useState<MaterialKey>('standard')
+type NumericMaterialKey = 'shininess' | 'metalness' | 'roughness'
+
+function MaterialSection({ object }: { object: SceneObject }) {
+  const updateObject = useEditorStore((s) => s.updateObject)
+  const commitHistory = useEditorStore((s) => s.commitHistory)
+  const { material } = object
+
+  /** 所有类型共用一份扁平配置，切换类型不会丢失其他类型已调参数 */
+  const patchMaterial = (patch: Partial<MaterialConfig>, commit = true) => {
+    updateObject(object.id, { material: { ...material, ...patch } })
+    if (commit) commitHistory()
+  }
+
+  /** 数字参数仅在 blur / Enter 提交；空值和非法数字回退，越界值夹紧 */
+  const commitNumber = (
+    key: NumericMaterialKey,
+    raw: string,
+    min: number,
+    max?: number,
+  ) => {
+    if (raw.trim() === '') return
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) return
+    const value = Math.max(min, max === undefined ? parsed : Math.min(max, parsed))
+    if (value === material[key]) return
+    patchMaterial({ [key]: value } as Partial<MaterialConfig>)
+  }
 
   return (
     <div className="material-section">
       <Field label="材质类型">
         <select
-          value={material}
-          onChange={(e) => setMaterial(e.target.value as MaterialKey)}
+          value={material.type}
+          onChange={(e) => patchMaterial({ type: e.target.value as MaterialType })}
         >
           <option value="basic">MeshBasicMaterial</option>
           <option value="phong">MeshPhongMaterial</option>
@@ -219,38 +243,72 @@ function MaterialSection() {
         </select>
       </Field>
 
-      {material === 'basic' && (
+      {material.type === 'basic' && (
         <label className="checkbox-row">
-          <input type="checkbox" />
+          <input
+            type="checkbox"
+            checked={material.wireframe}
+            onChange={(e) => patchMaterial({ wireframe: e.target.checked })}
+          />
           <span>线框 wireframe</span>
         </label>
       )}
 
-      {material === 'phong' && (
+      {material.type === 'phong' && (
         <>
           <Field label="高光强度 shininess">
-            <input type="number" step={1} min={0} defaultValue={30} />
+            <DraftInput
+              type="number"
+              step={1}
+              min={0}
+              value={String(material.shininess)}
+              onCommit={(raw) => commitNumber('shininess', raw, 0)}
+            />
           </Field>
           <Field label="高光色 specular">
-            <input type="color" defaultValue="#ffffff" />
+            <input
+              type="color"
+              value={material.specular}
+              style={{ width: 60 }}
+              onChange={(e) => patchMaterial({ specular: e.target.value }, false)}
+              onBlur={() => commitHistory()}
+            />
           </Field>
         </>
       )}
 
-      {material === 'standard' && (
+      {material.type === 'standard' && (
         <>
           <Field label="金属度 metalness">
-            <input type="number" step={0.01} min={0} max={1} defaultValue={0.1} />
+            <DraftInput
+              type="number"
+              step={0.01}
+              min={0}
+              max={1}
+              value={String(material.metalness)}
+              onCommit={(raw) => commitNumber('metalness', raw, 0, 1)}
+            />
           </Field>
           <Field label="粗糙度 roughness">
-            <input type="number" step={0.01} min={0} max={1} defaultValue={0.5} />
+            <DraftInput
+              type="number"
+              step={0.01}
+              min={0}
+              max={1}
+              value={String(material.roughness)}
+              onCommit={(raw) => commitNumber('roughness', raw, 0, 1)}
+            />
           </Field>
         </>
       )}
 
-      {material === 'normal' && (
+      {material.type === 'normal' && (
         <label className="checkbox-row">
-          <input type="checkbox" />
+          <input
+            type="checkbox"
+            checked={material.flatShading}
+            onChange={(e) => patchMaterial({ flatShading: e.target.checked })}
+          />
           <span>平面着色 flatShading</span>
         </label>
       )}
@@ -274,6 +332,7 @@ interface DraftInputProps {
   type?: 'text' | 'number'
   step?: number
   min?: number
+  max?: number
   maxLength?: number
   style?: React.CSSProperties
   onCommit: (raw: string) => void
@@ -288,6 +347,7 @@ function DraftInput({
   type = 'text',
   step,
   min,
+  max,
   maxLength,
   style,
   onCommit,
@@ -303,6 +363,7 @@ function DraftInput({
       value={focused ? draft : value}
       step={step}
       min={min}
+      max={max}
       maxLength={maxLength}
       style={style}
       onFocus={() => {

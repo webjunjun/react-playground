@@ -40,6 +40,12 @@ interface EditorState {
   removeObject: (id: string) => void
   /** 复制对象并选中副本（PRD 4.7） */
   duplicateObject: (id: string) => void
+  /** 将源对象插入目标对象前/后；有效排序产生一条历史快照（PRD 5.4） */
+  reorderObject: (
+    sourceId: string,
+    targetId: string,
+    placement: 'before' | 'after',
+  ) => void
   /** 清空场景对象与选中 */
   clearScene: () => void
   /** 把当前状态提交为一条历史快照（Gizmo 松手、属性提交等时机） */
@@ -120,6 +126,23 @@ export const useEditorStore = create<EditorState>((set) => ({
       if (!source) return state
       const copy = createCopyObject(source)
       return pushSnapshot(state, { objects: [...state.objects, copy], selectedId: copy.id })
+    }),
+  reorderObject: (sourceId, targetId, placement) =>
+    set((state) => {
+      if (sourceId === targetId) return state
+      const sourceIndex = state.objects.findIndex((o) => o.id === sourceId)
+      if (sourceIndex < 0 || !state.objects.some((o) => o.id === targetId)) return state
+
+      const objects = state.objects.filter((o) => o.id !== sourceId)
+      const targetIndex = objects.findIndex((o) => o.id === targetId)
+      const insertAt = targetIndex + (placement === 'after' ? 1 : 0)
+      // 移除源对象后，插入点仍等于原索引说明顺序未变
+      if (insertAt === sourceIndex) return state
+
+      objects.splice(insertAt, 0, state.objects[sourceIndex])
+      const result = pushSnapshot(state, { objects, selectedId: state.selectedId })
+      writeAutosave(serializeScene(result.objects, state.env, state.ground))
+      return result
     }),
   clearScene: () =>
     set((state) => {

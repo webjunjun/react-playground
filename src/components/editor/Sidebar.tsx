@@ -71,14 +71,73 @@ function LibraryPanel() {
 
 /* ==================== 场景对象列表（分组见 DEV-PLAN #17，当前平铺） ==================== */
 
+type DropPlacement = 'before' | 'after'
+type RowDragHandler = (id: string, e: React.DragEvent<HTMLLIElement>) => void
+
+/** 目标行上半部分插入其前，下半部分插入其后 */
+function getDropPlacement(e: React.DragEvent<HTMLLIElement>): DropPlacement {
+  const rect = e.currentTarget.getBoundingClientRect()
+  return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+}
+
 function ObjectTree() {
   const objects = useEditorStore((s) => s.objects)
   const selectedId = useEditorStore((s) => s.selectedId)
   const onSelect = useEditorStore((s) => s.select)
+  const reorderObject = useEditorStore((s) => s.reorderObject)
   const [keyword, setKeyword] = useState('')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{
+    id: string
+    placement: DropPlacement
+  } | null>(null)
 
   const kw = keyword.trim().toLowerCase()
   const filtered = kw ? objects.filter((o) => o.name.toLowerCase().includes(kw)) : objects
+  // 过滤只是局部视图，禁用排序可避免把局部索引误映射到全量数组
+  const sortDisabled = kw.length > 0
+
+  const clearDrag = () => {
+    setDraggingId(null)
+    setDropTarget(null)
+  }
+
+  const handleDragStart: RowDragHandler = (id, e) => {
+    if (sortDisabled) {
+      e.preventDefault()
+      return
+    }
+    e.dataTransfer.setData('text/plain', id)
+    e.dataTransfer.effectAllowed = 'move'
+    setDraggingId(id)
+    setDropTarget(null)
+  }
+
+  const handleDragOver: RowDragHandler = (id, e) => {
+    if (sortDisabled || !draggingId) return
+    e.preventDefault()
+    if (draggingId === id) {
+      e.dataTransfer.dropEffect = 'none'
+      setDropTarget(null)
+      return
+    }
+    e.dataTransfer.dropEffect = 'move'
+    const placement = getDropPlacement(e)
+    setDropTarget((current) =>
+      current?.id === id && current.placement === placement
+        ? current
+        : { id, placement },
+    )
+  }
+
+  const handleDrop: RowDragHandler = (id, e) => {
+    if (sortDisabled || !draggingId) return
+    e.preventDefault()
+    const sourceId = draggingId
+    const placement = getDropPlacement(e)
+    clearDrag()
+    if (sourceId !== id) reorderObject(sourceId, id, placement)
+  }
 
   return (
     <>
@@ -89,7 +148,10 @@ function ObjectTree() {
           placeholder="搜索对象"
           maxLength={64}
           value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
+          onChange={(e) => {
+            setKeyword(e.target.value)
+            clearDrag()
+          }}
         />
       </div>
 
@@ -101,6 +163,13 @@ function ObjectTree() {
             depth={0}
             selectedId={selectedId}
             onSelect={onSelect}
+            dragging={draggingId === object.id}
+            dropPlacement={dropTarget?.id === object.id ? dropTarget.placement : null}
+            sortDisabled={sortDisabled}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={clearDrag}
           />
         ))}
       </ul>
@@ -113,11 +182,25 @@ function ObjectRow({
   depth,
   selectedId,
   onSelect,
+  dragging,
+  dropPlacement,
+  sortDisabled,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   object: SceneObject
   depth: number
   selectedId: string | null
   onSelect: (id: string) => void
+  dragging: boolean
+  dropPlacement: DropPlacement | null
+  sortDisabled: boolean
+  onDragStart: RowDragHandler
+  onDragOver: RowDragHandler
+  onDrop: RowDragHandler
+  onDragEnd: () => void
 }) {
   const duplicateObject = useEditorStore((s) => s.duplicateObject)
   const removeObject = useEditorStore((s) => s.removeObject)
@@ -191,12 +274,23 @@ function ObjectRow({
     <>
       <li
         key={object.id}
-        className={`object-item depth-${depth} ${selectedId === object.id ? 'selected' : ''}`}
+        className={`object-item depth-${depth} ${selectedId === object.id ? 'selected' : ''} ${dragging ? 'dragging' : ''} ${dropPlacement ? `drop-${dropPlacement}` : ''}`}
         onClick={() => onSelect(object.id)}
         onContextMenu={handleContextMenu}
+        onDragStart={(e) => onDragStart(object.id, e)}
+        onDragOver={(e) => onDragOver(object.id, e)}
+        onDrop={(e) => onDrop(object.id, e)}
+        onDragEnd={onDragEnd}
       >
-        {/* 拖拽排序把手（PRD 5.4 的 UI 壳，不接拖拽逻辑） */}
-        <GripVertical size={12} strokeWidth={2} className="object-grip" />
+        {/* 仅把手可发起拖拽，保留整行点击与右键行为（PRD 5.4） */}
+        <span
+          className={`object-drag-handle ${sortDisabled ? 'disabled' : ''}`}
+          draggable={!sortDisabled}
+          title={sortDisabled ? '清空搜索后可拖拽排序' : '拖拽排序'}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={12} strokeWidth={2} className="object-grip" />
+        </span>
 
         <label className="object-visibility" onClick={(e) => e.stopPropagation()}>
           <input
@@ -264,6 +358,9 @@ function ObjectRow({
             }}
           >
             复制
+          </button>
+          <button disabled title="成组将在分组 / 父子层级功能中实装（#17）">
+            成组
           </button>
           <button
             onClick={() => {

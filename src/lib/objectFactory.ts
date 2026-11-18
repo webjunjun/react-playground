@@ -1,6 +1,10 @@
 import type { Vector3Tuple } from 'three'
 import type { PrimitiveType, SceneObject } from '@/types/editor'
-import { PRIMITIVE_DEFAULTS, PRIMITIVE_PRESETS } from '@/components/editor/presets'
+import {
+  DEFAULT_MATERIAL,
+  PRIMITIVE_DEFAULTS,
+  PRIMITIVE_PRESETS,
+} from '@/components/editor/presets'
 
 /** 类型 → 纯对象名，如 sphere → 球体 */
 const NAME_BY_TYPE = Object.fromEntries(
@@ -31,6 +35,7 @@ export function createSceneObject(type: PrimitiveType, objects: SceneObject[]): 
     rotation: [...defaults.rotation] as Vector3Tuple,
     scale: [...defaults.scale] as Vector3Tuple,
     color: defaults.color,
+    material: { ...DEFAULT_MATERIAL },
     visible: true,
     locked: false,
   }
@@ -45,5 +50,6 @@ export function createCopyObject(source: SceneObject): SceneObject {
     position: [source.position[0] + 1, source.position[1], source.position[2] + 1],
     rotation: [...source.rotation] as Vector3Tuple,
     scale: [...source.scale] as Vector3Tuple,
+    material: { ...source.material },
   }
 }

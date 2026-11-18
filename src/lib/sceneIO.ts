@@ -2,12 +2,15 @@ import type { Vector3Tuple } from 'three'
 import type {
   EnvironmentKey,
   GroundConfig,
+  MaterialConfig,
+  MaterialType,
   PrimitiveType,
   SceneObject,
 } from '@/types/editor'
+import { DEFAULT_MATERIAL } from '@/components/editor/presets'
 
 /** JSON schema 版本号（PRD 4.9） */
-export const SCENE_SCHEMA_VERSION = '1.1'
+export const SCENE_SCHEMA_VERSION = '1.2'
 
 /** localStorage 自动草稿 key（PRD 4.9） */
 export const AUTOSAVE_KEY = 'editor.autosave'
@@ -40,6 +43,14 @@ const VALID_TYPES: readonly PrimitiveType[] = [
   'capsule',
 ]
 
+/** MaterialType 白名单（校验用） */
+const VALID_MATERIAL_TYPES: readonly MaterialType[] = [
+  'basic',
+  'phong',
+  'standard',
+  'normal',
+]
+
 /** EnvironmentKey 白名单（校验用） */
 const VALID_ENVS: readonly EnvironmentKey[] = ['day', 'night', 'studio', 'none']
 
@@ -55,22 +66,74 @@ function isVec3(value: unknown): value is Vector3Tuple {
   )
 }
 
-/** 校验单个 SceneObject */
-function isValidObject(obj: unknown): obj is SceneObject {
-  if (!obj || typeof obj !== 'object') return false
+/** 校验并归一化材质；仅 1.1 旧数据允许缺省，自动补默认 Standard */
+function normalizeMaterial(value: unknown, allowDefault: boolean): MaterialConfig | null {
+  if (value === undefined) return allowDefault ? { ...DEFAULT_MATERIAL } : null
+  if (!value || typeof value !== 'object') return null
+  const m = value as Record<string, unknown>
+
+  if (!VALID_MATERIAL_TYPES.includes(m.type as MaterialType)) return null
+  if (typeof m.wireframe !== 'boolean') return null
+  if (typeof m.shininess !== 'number' || !Number.isFinite(m.shininess) || m.shininess < 0)
+    return null
+  if (typeof m.specular !== 'string' || !HEX_COLOR.test(m.specular)) return null
+  if (
+    typeof m.metalness !== 'number' ||
+    !Number.isFinite(m.metalness) ||
+    m.metalness < 0 ||
+    m.metalness > 1
+  )
+    return null
+  if (
+    typeof m.roughness !== 'number' ||
+    !Number.isFinite(m.roughness) ||
+    m.roughness < 0 ||
+    m.roughness > 1
+  )
+    return null
+  if (typeof m.flatShading !== 'boolean') return null
+
+  return {
+    type: m.type as MaterialType,
+    wireframe: m.wireframe,
+    shininess: m.shininess,
+    specular: m.specular,
+    metalness: m.metalness,
+    roughness: m.roughness,
+    flatShading: m.flatShading,
+  }
+}
+
+/** 校验并归一化单个 SceneObject */
+function normalizeObject(obj: unknown, allowDefaultMaterial: boolean): SceneObject | null {
+  if (!obj || typeof obj !== 'object') return null
   const o = obj as Record<string, unknown>
 
-  if (typeof o.id !== 'string' || o.id.length === 0) return false
-  if (typeof o.name !== 'string') return false
-  if (!VALID_TYPES.includes(o.type as PrimitiveType)) return false
-  if (!isVec3(o.position)) return false
-  if (!isVec3(o.rotation)) return false
-  if (!isVec3(o.scale)) return false
-  if (typeof o.color !== 'string' || !HEX_COLOR.test(o.color)) return false
-  if (typeof o.visible !== 'boolean') return false
-  if (typeof o.locked !== 'boolean') return false
+  if (typeof o.id !== 'string' || o.id.length === 0) return null
+  if (typeof o.name !== 'string') return null
+  if (!VALID_TYPES.includes(o.type as PrimitiveType)) return null
+  if (!isVec3(o.position)) return null
+  if (!isVec3(o.rotation)) return null
+  if (!isVec3(o.scale)) return null
+  if (typeof o.color !== 'string' || !HEX_COLOR.test(o.color)) return null
+  if (typeof o.visible !== 'boolean') return null
+  if (typeof o.locked !== 'boolean') return null
 
-  return true
+  const material = normalizeMaterial(o.material, allowDefaultMaterial)
+  if (!material) return null
+
+  return {
+    id: o.id,
+    name: o.name,
+    type: o.type as PrimitiveType,
+    position: o.position,
+    rotation: o.rotation,
+    scale: o.scale,
+    color: o.color,
+    material,
+    visible: o.visible,
+    locked: o.locked,
+  }
 }
 
 /**
@@ -109,9 +172,14 @@ export function parseSceneJSON(text: string): SceneFile | null {
   // version 必须是字符串
   if (typeof d.version !== 'string') return null
 
-  // objects 必须是非空数组，且每项校验通过
+  // 1.1 对象没有 material，迁移时补默认值；1.2 起缺字段或字段非法均拒绝
   if (!Array.isArray(d.objects)) return null
-  if (!d.objects.every(isValidObject)) return null
+  const objects: SceneObject[] = []
+  for (const value of d.objects) {
+    const object = normalizeObject(value, d.version === '1.1')
+    if (!object) return null
+    objects.push(object)
+  }
 
   // environment 可选；如果提供了必须合法
   if (d.environment !== undefined) {
@@ -134,8 +202,8 @@ export function parseSceneJSON(text: string): SceneFile | null {
   }
 
   return {
-    version: d.version,
-    objects: d.objects as SceneObject[],
+    version: SCENE_SCHEMA_VERSION,
+    objects,
     environment: {
       sky: env.sky ?? 'day',
       ground: env.ground ?? { visible: true, color: '#475569' },

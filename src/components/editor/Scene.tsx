@@ -261,10 +261,52 @@ function StaticMesh({
     >
       <mesh castShadow receiveShadow>
         <Geometry type={object.type} />
-        <meshStandardMaterial color={object.color} wireframe={wireframe} />
+        <ObjectMaterial object={object} wireframe={wireframe} />
       </mesh>
     </group>
   )
+}
+
+/** 按对象材质类型渲染；全局线框覆盖所有材质，Basic 自身线框仅作用于 Basic */
+function ObjectMaterial({ object, wireframe }: { object: SceneObject; wireframe: boolean }) {
+  const { color, material } = object
+
+  switch (material.type) {
+    case 'basic':
+      return (
+        <meshBasicMaterial
+          color={color}
+          wireframe={wireframe || material.wireframe}
+        />
+      )
+    case 'phong':
+      return (
+        <meshPhongMaterial
+          color={color}
+          shininess={material.shininess}
+          specular={material.specular}
+          wireframe={wireframe}
+        />
+      )
+    case 'standard':
+      return (
+        <meshStandardMaterial
+          color={color}
+          metalness={material.metalness}
+          roughness={material.roughness}
+          wireframe={wireframe}
+        />
+      )
+    case 'normal':
+      return (
+        <meshNormalMaterial
+          // flatShading 改变后需要重新编译着色器，remount 确保切换立即生效
+          key={material.flatShading ? 'flat' : 'smooth'}
+          flatShading={material.flatShading}
+          wireframe={wireframe}
+        />
+      )
+  }
 }
 
 function Geometry({ type }: { type: SceneObject['type'] }) {

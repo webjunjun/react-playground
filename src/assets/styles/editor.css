@@ -229,6 +229,18 @@
   border-color: var(--accent);
 }
 
+.object-item.dragging {
+  opacity: 0.45;
+}
+
+.object-item.drop-before {
+  box-shadow: 0 -2px 0 var(--accent);
+}
+
+.object-item.drop-after {
+  box-shadow: 0 2px 0 var(--accent);
+}
+
 .object-visibility {
   display: flex;
   align-items: center;
@@ -983,6 +995,11 @@
   border-color: var(--accent);
 }
 
+.object-drag-handle {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 .object-grip {
   color: #4b5563;
   opacity: 0;
@@ -993,6 +1010,14 @@
 
 .object-item:hover .object-grip {
   opacity: 1;
+}
+
+.object-item.dragging .object-grip {
+  cursor: grabbing;
+}
+
+.object-drag-handle.disabled .object-grip {
+  cursor: not-allowed;
 }
 
 /* 行内锁定图标：已锁常显（琥珀色），未锁 hover 显 */

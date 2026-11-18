@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 /**
  * 快捷键帮助浮层（DEV-PLAN A4 / PRD 5.2）
- * `?` 键或 Shift+/ 触发，Esc 关闭
+ * `?` 键或 Shift+/ 打开，Esc 或点击遮罩关闭
  */
 export function HelpOverlay() {
   const [open, setOpen] = useState(false)
@@ -16,6 +16,9 @@ export function HelpOverlay() {
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT'
 
+      const isHelpKey = e.key === '?' || (e.key === '/' && e.shiftKey)
+      if (e.repeat && isHelpKey) return
+
       if (open) {
         if (e.code === 'Escape') setOpen(false)
         return
@@ -23,7 +26,7 @@ export function HelpOverlay() {
 
       // 非输入态：? 或 Shift+/ 触发
       if (isTyping) return
-      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+      if (isHelpKey) {
         e.preventDefault()
         setOpen(true)
       }
@@ -58,8 +61,8 @@ export function HelpOverlay() {
             <tr><td><kbd>Delete</kbd></td><td>删除选中对象</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>复制选中对象</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>撤销</td></tr>
-            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>重做</td></tr>
-            <tr><td><kbd>?</kbd></td><td>显示 / 关闭本帮助</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd> 或 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></td><td>重做</td></tr>
+            <tr><td><kbd>?</kbd></td><td>显示本帮助</td></tr>
           </tbody>
         </table>
         <div className="help-hint">按 <kbd>Esc</kbd> 或点击外部关闭</div>
