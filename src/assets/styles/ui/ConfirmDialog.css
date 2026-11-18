@@ -1,0 +1,101 @@
+/* ==================== 通用确认弹窗 ==================== */
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(9, 11, 17, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.confirm-dialog {
+  width: 320px;
+  height: fit-content;
+  padding: 20px;
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.confirm-dialog h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.confirm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  margin-bottom: 18px;
+  border: 1px solid #2f3444;
+  border-radius: 6px;
+  background: #11131b;
+  color: #e2e8f0;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.confirm-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.confirm-input::placeholder {
+  color: #64748b;
+}
+
+.confirm-dialog p {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-btn {
+  padding: 7px 14px;
+  border: 1px solid #2f3444;
+  border-radius: 6px;
+  background: #232734;
+  color: #cbd5e1;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.confirm-btn:hover {
+  background: #2a2f3d;
+  color: #fff;
+}
+
+.confirm-btn.danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.confirm-btn.danger:hover {
+  background: #b91c1c;
+}
+
+.confirm-btn.primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.confirm-btn.primary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}

@@ -339,28 +339,31 @@
     <div class="callout callout-info">
       <strong>静态 UI 版实现说明（2026-11）：</strong>当前代码库已完成 P0 / P1 / P2 的<strong>全部 UI 壳</strong>（含时间轴、树形列表、材质 / 环境区、渲染导出菜单），并追加以下超出原 PRD 的内容：画布右上角<strong>视图控制条</strong>、地板降级为<strong>环境元素</strong>（环境区可显隐 / 换色）、对象<strong>锁定</strong>字段与图标、列表搜索框与拖拽把手、时间轴播放头 / 多轨 / 时长标注、Vec3 分组折叠与重置。交互与功能实装按 <code>docs/DEV-PLAN.md</code> 推进，后续演进见 <code>docs/ROADMAP.md</code>。本文档相应小节已同步（标注「静态版」处）。
     </div>
+    <div class="callout callout-info">
+      <strong>功能实装进度（截至本次更新）：</strong>P0 主链路已打通——状态 store、添加 / 复制 / 删除对象、视口拾取选中、Gizmo 三种变换、撤销重做、显隐与锁定、JSON 导出 / 导入、localStorage 自动草稿、环境预设；效率项已补：列表搜索过滤、Vec3 重置、快捷键帮助浮层、对象右键菜单与重命名弹窗、视图控制条（四个视角 + 实体 / 线框）。尚未实装：对象列表拖拽排序（5.4）、材质类型切换（5.3）、方向键微移、离开页面提示。
+    </div>
 
     <h3>3.1 界面区域</h3>
     <p>编辑器采用经典三栏布局，各区域职责单一、互不重叠：</p>
 
     <div class="ascii-flow">
       ┌─────────────────────────────────────────────────────────┐
-      │  [工具栏 · Toolbar]   变换模式 | 撤销/重做 | 保存/清空   │
+      │  [工具栏 · Toolbar]   变换模式 | 撤销/重做 | 保存/清空       │
       ├──────────┬──────────────────────────────┬──────────────┤
       │          │                    [视图控制条]│              │
-      │  资源库  │                              │  属性面板    │
-      │  对象列表 │        3D 画布              │  名称/颜色   │
-      │  (240px) │     (Canvas + Gizmo)         │  位置/旋转   │
-      │          │                              │  缩放/材质   │
+      │  资源库   │                              │  属性面板     │
+      │  对象列表 │        3D 画布                │  名称/颜色    │
+      │  (240px) │     (Canvas + Gizmo)         │  位置/旋转    │
+      │          │                              │  缩放/材质    │
       │          │                              │   (260px)    │
       ├──────────┴──────────────────────────────┴──────────────┤
-      │  [时间轴 · Timeline]（静态壳已铺，见 6.4）              │
+      │  [时间轴 · Timeline]（静态壳已铺，见 6.4）                 │
       ├─────────────────────────────────────────────────────────┤
-      │  [状态栏 · StatusBar]   对象数 | 选中状态 | 快捷键提示  │
+      │  [状态栏 · StatusBar]   对象数 | 选中状态 | 快捷键提示       │
       └─────────────────────────────────────────────────────────┘
     </div>
     <p>
-      画布右上角为<strong>视图控制条</strong>（透视 / 前 / 顶 / 视图切换 + 实体 / 线框着色），静态版已铺 UI，行为实装见 ROADMAP V1.1。
+      画布右上角为<strong>视图控制条</strong>：<strong>透视 / 前 / 顶 / 右</strong>四个相机预设 + <strong>实体 / 线框</strong>着色切换。<strong>已实装</strong>（DEV-PLAN A1），视图与着色属于工具状态，不写入场景历史、不触发自动保存。
     </p>
 
     <h3>3.2 核心对象模型</h3>
@@ -409,14 +412,16 @@
           <td>
             <ul>
               <li>使用 WebGL 渲染器，开启抗锯齿与阴影映射</li>
-              <li>相机使用透视投影，初始 fov = 50</li>
-              <li>OrbitControls 默认启用，支持左键旋转、右键平移、滚轮缩放</li>
+              <li>相机默认使用透视投影，初始 fov = 50，位置 <code>(8, 8, 12)</code></li>
+              <li>视角切换：<strong>透视 / 前 / 顶 / 右</strong>四个预设；后三者使用正交相机（前视沿 -Z、顶视沿 -Y、右视沿 -X）</li>
+              <li>着色切换：<strong>实体</strong>（meshStandardMaterial）/ <strong>线框</strong>（同一材质加 wireframe），只作用于用户对象，不影响天空 / 网格 / 地面</li>
+              <li>OrbitControls 默认启用，支持左键旋转、右键平移、滚轮缩放；切换正交视角后仍可旋转缩放（跟随当前 default camera）</li>
               <li>滚轮缩放上下限：距离相机 3 ~ 60 个世界单位</li>
               <li>极角限制：相机始终在地平面上方，不允许翻到地下</li>
             </ul>
           </td>
         </tr>
-        <tr><td><strong>Result</strong></td><td>场景可见，用户可以自由观察但不会误翻到地下</td></tr>
+        <tr><td><strong>Result</strong></td><td>场景可见，用户可以自由观察、切到正交视角精确定位，且不会误翻到地下</td></tr>
         <tr><td><strong>Exceptions</strong></td><td>WebGL 不可用时显示一张提示卡片，告知"当前浏览器不支持 WebGL"</td></tr>
       </tbody>
     </table>
@@ -480,10 +485,10 @@
       <thead><tr><th style="width:160px;">触发方式</th><th>行为</th></tr></thead>
       <tbody>
         <tr><td>点击场景中的几何体</td><td>该对象成为当前选中，其他对象取消选中</td></tr>
-        <tr><td>点击锁定（<code>locked</code>）的对象</td><td><strong>静态版新增字段，拾取行为待实装：</strong>视口拾取跳过锁定对象、不改变选中；只能通过对象列表选中它（解锁入口）</td></tr>
+        <tr><td>点击锁定（<code>locked</code>）的对象</td><td><strong>已实装：</strong>视口拾取跳过锁定对象，点到它会穿透选中后方未锁定对象；锁定对象只能通过对象列表选中，且选中后不显示 Gizmo</td></tr>
         <tr><td>点击左侧对象列表的某一行</td><td>同上；若对象被标记为不可见，则不响应画布点击，但仍可通过列表选中</td></tr>
         <tr><td>点击画布空白处</td><td>清空选中，Gizmo 消失</td></tr>
-        <tr><td>按 <code>Esc</code></td><td>清空选中，Gizmo 消失</td></tr>
+        <tr><td>按 <code>Esc</code></td><td>清空选中，Gizmo 消失（<strong>未实装</strong>；当前 Esc 仅用于关闭浮层 / 弹窗）</td></tr>
         <tr><td>点击「资源库」卡片（添加对象）</td><td>新添加的对象自动成为选中</td></tr>
       </tbody>
     </table>
@@ -544,9 +549,12 @@
         <tr><td>旋转 <code>rotation</code></td><td>三元数字 (X, Y, Z)</td><td>(0, 0, 0)</td><td>单位为弧度；输入值直接覆盖 rotation；不做归一化</td></tr>
         <tr><td>缩放 <code>scale</code></td><td>三元数字 (X, Y, Z)</td><td>(1, 1, 1)</td><td>step = 0.1；下限 0.01，不允许 0 或负数</td></tr>
         <tr><td>可见 <code>visible</code></td><td>复选框</td><td>true</td><td>取消后对象不渲染，但仍在列表中</td></tr>
-        <tr><td>锁定 <code>locked</code></td><td>复选框</td><td>false</td><td><strong>静态版新增。</strong>锁定后：视口点击拾取跳过、全选 / 框选排除、删除前需先解锁；列表内仍可选中（解锁入口）；选中的锁定对象不显示 Gizmo</td></tr>
+        <tr><td>锁定 <code>locked</code></td><td>复选框</td><td>false</td><td><strong>已实装。</strong>锁定后：视口点击拾取跳过、删除前需先解锁；列表内仍可选中（解锁入口）；选中的锁定对象不显示 Gizmo</td></tr>
       </tbody>
     </table>
+    <p>
+      位置 / 旋转 / 缩放三组 Vec3 输入框右侧各有一个<strong>重置按钮</strong>（↻），点击把该组恢复为该对象类型的出厂默认值（位置取类型默认位、旋转归零、缩放归 1），并产生一条历史快照以便撤销（DEV-PLAN A3 已实装）。
+    </p>
     <p>
       字段的<strong>轴向颜色约定</strong>（与 Gizmo 保持一致）：X = 红、Y = 绿、Z = 蓝。
     </p>
@@ -554,16 +562,22 @@
     <!-- 模块 4.7 -->
     <h3>4.7 左侧对象列表</h3>
     <p>
-      左侧栏两个 Tab：<strong>资源库</strong>（添加）和 <strong>场景</strong>（管理已有对象）。场景 Tab 顶部有<strong>搜索框</strong>按名称过滤对象（静态版已铺 UI，过滤逻辑见 DEV-PLAN 阶段 2.5）。对象列表每条包含：
+      左侧栏两个 Tab：<strong>资源库</strong>（添加）和 <strong>场景</strong>（管理已有对象）。场景 Tab 顶部有<strong>搜索框</strong>，按对象名称实时过滤（大小写不敏感、子串匹配，边输边过滤，清空即恢复全量）；过滤是渲染层派生数据，不写入 store、不产生历史快照。对象列表每条包含：
     </p>
     <ul>
       <li>拖拽排序把手 — 行首，hover 显示（排序见 5.4；静态版已铺 UI）</li>
-      <li>可见性复选框 — 勾选控制 <code>visible</code> 字段</li>
+      <li>可见性复选框 — 受控绑定 <code>visible</code>，切换即时生效并产生历史快照</li>
       <li>颜色圆点 — 显示对象当前颜色</li>
       <li>对象名称 — 可点击选中</li>
-      <li>锁定图标 — 已锁定常显（琥珀色）、未锁定 hover 显示开锁样式；点击切换 <code>locked</code>（静态版新增，切换行为待实装）</li>
-      <li>两个图标按钮：<strong>复制 (⧉)</strong> 和 <strong>删除 (✕)</strong> — hover 或选中时出现</li>
+      <li>锁定图标 — 已锁定常显、未锁定 hover 显示开锁样式；<strong>点击直接切换</strong> <code>locked</code>（已实装）</li>
+      <li>两个图标按钮：<strong>复制 (⧉)</strong> 和 <strong>删除 (✕)</strong> — hover 或选中时出现；锁定对象的删除按钮置灰</li>
     </ul>
+    <p>
+      <strong>右键菜单（已实装）：</strong>在列表项上右键唤出自定义菜单（非浏览器原生），同时选中该对象。菜单项为：<strong>重命名</strong> / <strong>复制</strong> / <strong>锁定（或解锁）</strong> / <strong>删除</strong>（锁定时禁用）。点击菜单外区域或按 <code>Esc</code> 关闭。
+    </p>
+    <p>
+      <strong>重命名：</strong>点击「重命名」弹出居中输入弹窗（非浏览器 <code>prompt</code>），打开即聚焦并全选原名；<code>Enter</code> / 确定提交，<code>Esc</code> / 取消 / 点遮罩放弃。名称 trim 后非空且与原名不同才写回，并产生一条历史快照。
+    </p>
     <table>
       <thead><tr><th style="width:140px;">操作</th><th>处理规则</th></tr></thead>
       <tbody>
@@ -601,10 +615,11 @@
     <table>
       <thead><tr><th style="width:140px;">操作</th><th>触发方式</th><th>规则</th></tr></thead>
       <tbody>
-        <tr><td><strong>导出 JSON</strong></td><td>工具栏「保存」按钮 → 弹出菜单选「导出 JSON」</td><td>把当前 Scene 序列化为 JSON 文件，触发浏览器下载，文件名默认 <code>scene-{时间戳}.json</code></td></tr>
-        <tr><td><strong>导入 JSON</strong></td><td>工具栏「打开」按钮 → 选择本地 JSON 文件</td><td>读取文件，校验 schema；校验通过 → 用导入内容<strong>替换</strong>当前场景，并清空历史（因为是全新会话）</td></tr>
-        <tr><td><strong>校验失败</strong></td><td>导入 JSON 不符合 schema</td><td>弹窗告知"文件格式不正确或版本不匹配"，不修改当前场景</td></tr>
-        <tr><td><strong>自动保存到 localStorage</strong></td><td>每次产生历史快照时</td><td>后台静默写入 <code>editor.autosave</code> key；页面下次打开时检测到 autosave 存在则询问"恢复上次编辑的场景？"</td></tr>
+        <tr><td><strong>导出 JSON</strong></td><td>工具栏「保存」按钮 → 弹出菜单选「导出 JSON」</td><td>把当前 Scene 序列化为 JSON 文件，触发浏览器下载，文件名默认 <code>scene-{YYYYMMDD-HHmmss}.json</code>；成功后 Toast 提示。导出内容不含撤销历史（history 属本地会话状态）</td></tr>
+        <tr><td><strong>导入 JSON</strong></td><td>工具栏「打开」按钮 → 选择本地 JSON 文件</td><td>读取文件，校验 schema；校验通过后先弹<strong>二次确认</strong>（"导入将替换当前未保存的场景（N 个对象），继续？"），确认后替换场景（含环境配置）并清空历史（保留 1 条初始快照作为新会话起点）；成功后 Toast 提示导入对象数</td></tr>
+        <tr><td><strong>校验失败</strong></td><td>导入 JSON 不符合 schema（版本不符、字段缺失或取值非法）</td><td>Toast 报错"文件格式不正确或版本不匹配"，<strong>不修改当前场景</strong></td></tr>
+        <tr><td><strong>自动保存到 localStorage</strong></td><td>每次产生历史快照时</td><td>后台静默写入 <code>editor.autosave</code> key（无提示）；页面下次打开时检测到草稿则弹窗询问「恢复上次编辑」</td></tr>
+        <tr><td><strong>草稿恢复弹窗</strong></td><td>页面挂载时检测到 autosave</td><td>弹窗显示草稿对象数。「恢复草稿」→ 替换场景并清除草稿；「不恢复」/ <code>Esc</code> / 点遮罩 → <strong>一律清除草稿</strong>，进入默认场景</td></tr>
       </tbody>
     </table>
     <p>
@@ -663,17 +678,24 @@
     <table>
       <thead><tr><th style="width:120px;">快捷键</th><th>行为</th></tr></thead>
       <tbody>
-        <tr><td><code>Ctrl+D</code></td><td>复制当前选中对象</td></tr>
-        <tr><td><code>Ctrl+A</code></td><td>全选（P1 支持多选）</td></tr>
-        <tr><td><code>Delete</code> / <code>Backspace</code></td><td>删除当前选中（在输入框内时不触发）</td></tr>
-        <tr><td><code>W / E / R</code></td><td>快速切换 Gizmo 模式：W=平移、E=旋转、R=缩放</td></tr>
-        <tr><td>方向键 ↑ ↓ ← →</td><td>在平移模式下每次移动 0.1 个世界单位</td></tr>
+        <tr><td><code>W / E / R</code></td><td>快速切换 Gizmo 模式：W=平移、E=旋转、R=缩放（已实装）</td></tr>
+        <tr><td><code>Delete</code></td><td>删除当前选中（在输入框内时不触发；锁定对象跳过）（已实装；<code>Backspace</code> 未绑定）</td></tr>
+        <tr><td><code>Ctrl+D</code></td><td>复制当前选中对象（已实装）</td></tr>
+        <tr><td><code>Ctrl+Z</code></td><td>撤销（已实装）</td></tr>
+        <tr><td><code>Ctrl+Y</code> / <code>Ctrl+Shift+Z</code></td><td>重做（已实装）</td></tr>
+        <tr><td><code>?</code>（<code>Shift+/</code>）</td><td>打开快捷键帮助浮层；<code>Esc</code> / 点遮罩 / 再按一次关闭；输入态下不触发（已实装）</td></tr>
+        <tr><td><code>Esc</code></td><td>关闭当前浮层 / 弹窗、关闭右键菜单（清空选中尚未实装）</td></tr>
+        <tr><td><code>Ctrl+A</code></td><td>全选（P1 支持多选，未实装）</td></tr>
+        <tr><td>方向键 ↑ ↓ ← →</td><td>在平移模式下每次移动 0.1 个世界单位（未实装）</td></tr>
       </tbody>
     </table>
+    <p>
+      快捷键监听统一挂在 <code>window</code> 上，输入框 / 文本域 / <code>contenteditable</code> / select 聚焦时不响应；功能键用 <code>e.code</code>（物理键位，跨键盘布局稳定），字符键（如 <code>?</code>）用 <code>e.key</code> 匹配。
+    </p>
 
     <h3>5.3 材质类型切换</h3>
     <p>
-      P0 所有对象使用 <code>MeshStandardMaterial</code>。P1 允许在属性面板中切换材质类型，并暴露与该材质相关的字段。
+      P0 所有对象使用 <code>MeshStandardMaterial</code>。P1 允许在属性面板中切换材质类型，并暴露与该材质相关的字段。<strong>当前状态：</strong>尚未实装；视图控制条的「实体 / 线框」是临时的全局着色开关，不改变对象的材质字段。
     </p>
     <table>
       <thead><tr><th>材质</th><th>暴露的字段</th><th>说明</th></tr></thead>
@@ -687,7 +709,7 @@
 
     <h3>5.4 对象列表排序与拖拽</h3>
     <p>
-      P1 允许在对象列表中<strong>拖拽排序</strong>；场景渲染顺序不受列表顺序影响，但列表顺序会影响后续功能（分组、层级）的阅读顺序。拖拽产生 HistoryEntry。
+      P1 允许在对象列表中<strong>拖拽排序</strong>；场景渲染顺序不受列表顺序影响，但列表顺序会影响后续功能（分组、层级）的阅读顺序。拖拽产生 HistoryEntry。<strong>当前状态：</strong>拖拽把手 UI 已铺，排序逻辑尚未实装。
     </p>
 
     <h3>5.5 环境预设</h3>
@@ -704,7 +726,7 @@
       </tbody>
     </table>
     <p>
-      <strong>静态版补充：</strong>环境区还包含<strong>地面</strong>配置行（显示 / 隐藏复选框 + 颜色选择器），已随静态 UI 实装并实际生效；四个预设的切换逻辑待实装（DEV-PLAN #11）。
+      <strong>实装说明（DEV-PLAN #11 已完成）：</strong>环境区还包含<strong>地面</strong>配置行（显示 / 隐藏复选框 + 颜色选择器），实时生效；四个预设切换即时作用于画布：日间用程序化 Sky，夜晚为深色背景 + 同色雾 + 冷色弱光 + 深色网格线，工作室为浅灰纯色背景且隐藏网格，无预设时画布透明（<code>alpha: true</code>）。阴影统一走方向光的 shadow map（<code>none</code> 预设下关闭），不再叠加 ContactShadows，避免双重阴影。
     </p>
   </section>
 
@@ -760,10 +782,15 @@
         <tr><td>Gizmo 拖拽（平移 / 旋转 / 缩放）</td><td>✅ 是</td><td>只在 mouseup 那一刻 push，不是每帧</td></tr>
         <tr><td>属性面板字段修改</td><td>✅ 是</td><td>blur / 回车 时 push（避免每次按键都产生快照）</td></tr>
         <tr><td>清空场景</td><td>✅ 是</td><td>确认后 push</td></tr>
-        <tr><td>改变相机视角</td><td>❌ 否</td><td>视图状态，不属于场景数据</td></tr>
+        <tr><td>勾选 / 取消可见性</td><td>✅ 是</td><td>属于场景数据变化</td></tr>
+        <tr><td>切换锁定 / 解锁</td><td>✅ 是</td><td>属于场景数据变化</td></tr>
+        <tr><td>重命名对象</td><td>✅ 是</td><td>提交且名称确有变化时 push</td></tr>
+        <tr><td>Vec3 重置（位置 / 旋转 / 缩放）</td><td>✅ 是</td><td>写回默认值后 push</td></tr>
+        <tr><td>改变相机视角（透视 / 前 / 顶 / 右）</td><td>❌ 否</td><td>视图状态，不属于场景数据</td></tr>
+        <tr><td>切换实体 / 线框着色</td><td>❌ 否</td><td>视图工具状态</td></tr>
+        <tr><td>搜索框过滤对象列表</td><td>❌ 否</td><td>渲染层派生数据</td></tr>
         <tr><td>切换 Gizmo 模式</td><td>❌ 否</td><td>UI 工具状态</td></tr>
         <tr><td>切换资源库 / 场景 Tab</td><td>❌ 否</td><td>UI 工具状态</td></tr>
-        <tr><td>勾选 / 取消可见性</td><td>✅ 是</td><td>属于场景数据变化</td></tr>
         <tr><td>导入 JSON</td><td>❌ 否</td><td>导入即新会话，重置历史</td></tr>
       </tbody>
     </table>
@@ -787,11 +814,14 @@
 
     <h3>7.4 所有弹窗与二次确认</h3>
     <table>
-      <thead><tr><th>操作</th><th>是否二次确认</th><th>弹窗文案</th></tr></thead>
+      <thead><tr><th style="width:200px;">操作</th><th style="width:110px;">是否二次确认</th><th>弹窗文案 / 说明</th></tr></thead>
       <tbody>
         <tr><td>清空场景</td><td>✅</td><td>"确定要清空整个场景吗？此操作可通过撤销恢复。"</td></tr>
-        <tr><td>导入 JSON（会替换当前场景）</td><td>✅</td><td>"导入将替换当前未保存的场景，继续？"</td></tr>
-        <tr><td>关闭页面时有未保存修改</td><td>✅</td><td>浏览器原生弹窗："离开后更改将丢失"</td></tr>
+        <tr><td>导入 JSON（会替换当前场景）</td><td>✅</td><td>"导入将替换当前未保存的场景（N 个对象），继续？"；取消 / Esc / 点遮罩均放弃导入，场景不变</td></tr>
+        <tr><td>导入校验失败</td><td>❌</td><td>Toast 报错"文件格式不正确或版本不匹配"，不改动场景</td></tr>
+        <tr><td>自动草稿恢复</td><td>✅</td><td>"检测到一份自动草稿（N 个对象），是否恢复？"；不恢复 / Esc / 点遮罩均清除草稿</td></tr>
+        <tr><td>对象重命名</td><td>❌（输入弹窗）</td><td>居中输入弹窗，非二次确认性质；Enter 提交、Esc 取消</td></tr>
+        <tr><td>关闭页面时有未保存修改</td><td>✅</td><td>浏览器原生弹窗："离开后更改将丢失"（未实装）</td></tr>
         <tr><td>删除单个对象</td><td>❌</td><td>—— 可撤销，无需确认</td></tr>
       </tbody>
     </table>
@@ -821,7 +851,7 @@
       <tbody>
         <tr><td>Q1</td><td>P0 是否需要内置"场景截图"功能？还是把它推到 P2 的静态 HTML 渲染里？</td><td>P0 / P2</td><td><span class="badge badge-p0">P0 评审前决定</span></td></tr>
         <tr><td>Q2</td><td>是否需要在 P0 支持多材质切换，还是只在 P1 加？（当前 PRD 写的是 P1 加）</td><td>P0 / P1</td><td><span class="badge badge-p1">留给 P1 评审</span></td></tr>
-        <tr><td>Q3</td><td>"按名称精确搜索/过滤对象" — 放 P1 还是 P2？</td><td>P1 / P2</td><td><span class="badge badge-p1">P1 评审时决定</span></td></tr>
+        <tr><td>Q3</td><td>"按名称精确搜索/过滤对象" — 放 P1 还是 P2？</td><td>P1 / P2</td><td><span class="badge badge-p1">已实装（按名称子串、大小写不敏感）</span></td></tr>
         <tr><td>Q4</td><td>未来是否考虑 URL 中携带 scene JSON（短场景可 base64 塞进 URL），实现"分享当前场景"？</td><td>P2+</td><td><span class="badge badge-p2">方向性问题</span></td></tr>
         <tr><td>Q5</td><td>移动端触控（手机/平板）是否有明确需求来源？若无，继续维持"不承诺可用"。</td><td>全期</td><td><span class="badge badge-p0">等待产品侧确认</span></td></tr>
       </tbody>

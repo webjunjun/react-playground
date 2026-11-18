@@ -3,6 +3,7 @@ import { Copy, X, FolderInput, GripVertical, Lock, LockOpen } from 'lucide-react
 import { PRIMITIVE_PRESETS } from './presets'
 import type { SceneObject } from '@/types/editor'
 import { useEditorStore } from '@/store/editor'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 /** 侧栏：资源库卡片接添加行为；场景 Tab 的计数、选中与列表读写 store */
 export function Sidebar() {
@@ -286,27 +287,25 @@ function ObjectRow({
 
       {/* 重命名弹窗 */}
       {renameOpen && (
-        <div className="confirm-backdrop" onClick={handleRenameCancel}>
-          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>重命名对象</h3>
-            <input
-              ref={renameInputRef}
-              type="text"
-              maxLength={64}
-              className="confirm-input"
-              value={renameDraft}
-              onChange={(e) => setRenameDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleRenameSubmit()
-                else if (e.key === 'Escape') handleRenameCancel()
-              }}
-            />
-            <div className="confirm-actions">
-              <button className="confirm-btn" onClick={handleRenameCancel}>取消</button>
-              <button className="confirm-btn primary" onClick={handleRenameSubmit}>确定</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="重命名对象"
+          autoFocusCancel={false}
+          onCancel={handleRenameCancel}
+          onConfirm={handleRenameSubmit}
+        >
+          <input
+            ref={renameInputRef}
+            type="text"
+            maxLength={64}
+            className="confirm-input"
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameSubmit()
+              else if (e.key === 'Escape') handleRenameCancel()
+            }}
+          />
+        </ConfirmDialog>
       )}
     </>
   )

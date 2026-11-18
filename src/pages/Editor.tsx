@@ -8,6 +8,7 @@ import { Timeline } from '@/components/editor/Timeline'
 import { StatusBar } from '@/components/editor/StatusBar'
 import { HelpOverlay } from '@/components/editor/HelpOverlay'
 import { ToastViewport, toast } from '@/components/ui/Toast'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { clearAutosave, readAutosave, type SceneFile } from '@/lib/sceneIO'
 import { useEditorStore } from '@/store/editor'
 import '@/assets/styles/editor.css'
@@ -35,8 +36,9 @@ export default function Editor() {
     setDraft(null)
   }
 
+  /** 不恢复（按钮 / Esc / 点遮罩）：清理 localStorage 草稿 */
   const handleDiscardDraft = () => {
-    // 用户选择"不恢复"：保留草稿在 localStorage，下次进来还提示（PRD 未指定清除）
+    clearAutosave()
     setDraft(null)
   }
 
@@ -66,57 +68,15 @@ export default function Editor() {
       <HelpOverlay />
 
       {draft && (
-        <DraftRestoreDialog
-          objectCount={draft.objects.length}
-          onConfirm={handleRestore}
+        <ConfirmDialog
+          title="恢复上次编辑"
+          message={`检测到一份自动草稿（${draft.objects.length} 个对象），是否恢复？`}
+          cancelLabel="不恢复"
+          confirmLabel="恢复草稿"
           onCancel={handleDiscardDraft}
+          onConfirm={handleRestore}
         />
       )}
-    </div>
-  )
-}
-
-/* ==================== 自动草稿恢复确认弹窗 ==================== */
-
-function DraftRestoreDialog({
-  objectCount,
-  onConfirm,
-  onCancel,
-}: {
-  objectCount: number
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
-
-  return (
-    <div className="confirm-backdrop" onClick={onCancel}>
-      <div
-        className="confirm-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="draft-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 id="draft-title">恢复上次编辑</h3>
-        <p>
-          检测到一份自动草稿（{objectCount} 个对象），是否恢复？
-        </p>
-        <div className="confirm-actions">
-          <button className="confirm-btn" onClick={onCancel} autoFocus>
-            不恢复
-          </button>
-          <button className="confirm-btn" onClick={onConfirm}>
-            恢复草稿
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

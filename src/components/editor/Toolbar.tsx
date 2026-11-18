@@ -22,8 +22,10 @@ import {
   parseSceneJSON,
   serializeScene,
   triggerJSONDownload,
+  type SceneFile,
 } from '@/lib/sceneIO'
 import { toast } from '@/components/ui/Toast'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number; strokeWidth?: number }>
 
@@ -47,11 +49,21 @@ export function Toolbar() {
   const redo = useEditorStore((s) => s.redo)
   const canUndo = useEditorStore((s) => s.historyIndex > 0)
   const canRedo = useEditorStore((s) => s.historyIndex < s.history.length - 1)
+  const replaceScene = useEditorStore((s) => s.replaceScene)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  // 解析成功但待用户确认的导入文件
+  const [pendingImport, setPendingImport] = useState<SceneFile | null>(null)
 
   const handleClear = () => {
     clearScene()
     setConfirmOpen(false)
+  }
+
+  const handleImportConfirm = () => {
+    if (!pendingImport) return
+    replaceScene(pendingImport)
+    toast.success(`已导入 ${pendingImport.objects.length} 个对象`)
+    setPendingImport(null)
   }
 
   return (
@@ -105,7 +117,7 @@ export function Toolbar() {
 
         <div className="toolbar-divider" />
 
-        <OpenButton />
+        <OpenButton onParsed={setPendingImport} />
 
         <SaveMenu />
 
@@ -124,22 +136,35 @@ export function Toolbar() {
 
     {confirmOpen && (
       <ConfirmDialog
+        title="清空场景"
+        message="确定要清空整个场景吗？此操作可通过撤销恢复。"
+        confirmLabel="确认清空"
+        danger
         onCancel={() => setConfirmOpen(false)}
         onConfirm={handleClear}
       />
     )}
 
+    {pendingImport && (
+      <ConfirmDialog
+        title="导入场景"
+        message={`导入将替换当前未保存的场景（${pendingImport.objects.length} 个对象），继续？`}
+        confirmLabel="确认导入"
+        onCancel={() => setPendingImport(null)}
+        onConfirm={handleImportConfirm}
+      />
+    )}
+
     {/* 快捷键监听（W/E/R / Delete / Ctrl+D / Ctrl+Z / Ctrl+Y） */}
-    <Hotkeys confirmOpen={confirmOpen} setMode={setMode} />
+    <Hotkeys confirmOpen={confirmOpen || !!pendingImport} setMode={setMode} />
     </>
   )
 }
 
 /* ==================== 打开按钮（触发隐藏 file input） ==================== */
 
-function OpenButton() {
+function OpenButton({ onParsed }: { onParsed: (file: SceneFile) => void }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
-  const replaceScene = useEditorStore((s) => s.replaceScene)
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -155,8 +180,8 @@ function OpenButton() {
         toast.error('文件格式不正确或版本不匹配')
         return
       }
-      replaceScene(parsed)
-      toast.success(`已导入 ${parsed.objects.length} 个对象`)
+      // 校验通过后不直接替换，先交由工具栏弹二次确认
+      onParsed(parsed)
     }
     reader.onerror = () => {
       toast.error('文件读取失败')
@@ -252,47 +277,6 @@ function SaveMenu() {
           </button>
         </div>
       )}
-    </div>
-  )
-}
-
-/* ==================== 清空二次确认弹窗 ==================== */
-
-function ConfirmDialog({
-  onCancel,
-  onConfirm,
-}: {
-  onCancel: () => void
-  onConfirm: () => void
-}) {
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
-
-  return (
-    <div className="confirm-backdrop" onClick={onCancel}>
-      <div
-        className="confirm-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 id="confirm-title">清空场景</h3>
-        <p>确定要清空整个场景吗？此操作可通过撤销恢复。</p>
-        <div className="confirm-actions">
-          <button className="confirm-btn" onClick={onCancel} autoFocus>
-            取消
-          </button>
-          <button className="confirm-btn danger" onClick={onConfirm}>
-            确认清空
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
