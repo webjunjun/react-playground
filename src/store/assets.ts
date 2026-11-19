@@ -20,6 +20,23 @@ export interface ImportSummary {
   external: number
 }
 
+/** 重链目标：由调用方从场景缺失实例计算出来，必须保留原 asset id */
+export interface ReimportTarget {
+  assetId: string
+  fileName: string
+}
+
+export interface ReimportSummary {
+  /** 成功恢复的资产数（以原 asset id 入库） */
+  restored: number
+  /** 用户选的文件中，没有匹配到任何缺失目标的数量 */
+  unmatched: number
+  /** 格式不支持或写入失败的数量 */
+  invalid: number
+  /** 本次尝试重链的目标总数 */
+  targets: number
+}
+
 interface AssetsState {
   assets: ModelAsset[]
   /** 资产 id → blob URL，只在运行时存在 */
@@ -29,6 +46,11 @@ interface AssetsState {
   hydrate: () => Promise<void>
   /** 导入本地文件：多选、判重、入库；返回汇总供 Toast 使用 */
   importFiles: (files: File[]) => Promise<ImportSummary>
+  /**
+   * 按 fileName 批量重链：以场景缺失实例的原 asset id 入库。
+   * 只匹配 targets 中声明的 fileName；不新增新 id、不判重（重链即补齐）。
+   */
+  reimportFiles: (files: File[], targets: ReimportTarget[]) => Promise<ReimportSummary>
   /** 删除单个资产及其 blob URL */
   removeAsset: (id: string) => Promise<void>
   /** 撤销删除时把资产重新入库并恢复 blob URL；已存在则跳过 */
@@ -130,6 +152,66 @@ export const useAssetsStore = create<AssetsState>((set, get) => ({
     }
 
     return { added: added.length, skipped, invalid, external }
+  },
+
+  reimportFiles: async (files, targets) => {
+    const { assets } = get()
+    const targetsByName = new Map(targets.map((t) => [t.fileName, t]))
+    const existingIds = new Set(assets.map((a) => a.id))
+    const restoredAssets: ModelAsset[] = []
+    const consumedTargetIds = new Set<string>()
+    let unmatched = 0
+    let invalid = 0
+
+    for (const file of files) {
+      const format = detectFormat(file.name)
+      if (!format) {
+        invalid += 1
+        continue
+      }
+      const target = targetsByName.get(file.name)
+      if (!target) {
+        unmatched += 1
+        continue
+      }
+      // 防御：同一个 target asset id 不重复入库（重复点击/文件重复）
+      if (consumedTargetIds.has(target.assetId) || existingIds.has(target.assetId)) continue
+      consumedTargetIds.add(target.assetId)
+
+      const asset: ModelAsset = {
+        id: target.assetId,
+        name: stripExtension(file.name),
+        fileName: file.name,
+        format,
+        size: file.size,
+        unitScale: 1,
+        createdAt: Date.now(),
+        blob: file,
+      }
+      try {
+        await writeAsset(asset)
+      } catch (error) {
+        console.error('[assets] 重链写入失败', file.name, error)
+        invalid += 1
+        continue
+      }
+      restoredAssets.push(asset)
+    }
+
+    if (restoredAssets.length > 0) {
+      const blobUrls = { ...get().blobUrls }
+      for (const asset of restoredAssets) {
+        blobUrls[asset.id] = URL.createObjectURL(asset.blob)
+      }
+      set({ assets: [...get().assets, ...restoredAssets], blobUrls })
+    }
+
+    return {
+      restored: restoredAssets.length,
+      unmatched,
+      invalid,
+      targets: targets.length,
+    }
   },
 
   removeAsset: async (id) => {

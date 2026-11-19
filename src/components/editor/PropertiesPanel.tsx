@@ -136,7 +136,7 @@ export function PropertiesPanel() {
                   <button
                     className="model-missing-action"
                     onClick={() =>
-                      toast.info('请先在资源库重新导入同名文件；批量重链将在 A3 支持')
+                      toast.info('请在资源库顶部的「资产缺失」提示栏选择文件批量恢复')
                     }
                   >
                     重新关联

@@ -7,10 +7,9 @@ import type {
   PrimitiveType,
   SceneObject,
 } from '@/types/editor'
-import { DEFAULT_MATERIAL } from '@/components/editor/presets'
 
-/** JSON schema 版本号（PRD 4.9） */
-export const SCENE_SCHEMA_VERSION = '1.2'
+/** JSON schema 版本号（PRD §5） */
+export const SCENE_SCHEMA_VERSION = '2.0'
 
 /** localStorage 自动草稿 key（PRD 4.9） */
 export const AUTOSAVE_KEY = 'editor.autosave'
@@ -66,9 +65,9 @@ function isVec3(value: unknown): value is Vector3Tuple {
   )
 }
 
-/** 校验并归一化材质；仅 1.1 旧数据允许缺省，自动补默认 Standard */
-function normalizeMaterial(value: unknown, allowDefault: boolean): MaterialConfig | null {
-  if (value === undefined) return allowDefault ? { ...DEFAULT_MATERIAL } : null
+/** 校验并归一化材质；2.0 起几何体材质必填 */
+function normalizeMaterial(value: unknown): MaterialConfig | null {
+  if (value === undefined) return null
   if (!value || typeof value !== 'object') return null
   const m = value as Record<string, unknown>
 
@@ -105,7 +104,7 @@ function normalizeMaterial(value: unknown, allowDefault: boolean): MaterialConfi
 }
 
 /** 校验并归一化单个 SceneObject */
-function normalizeObject(obj: unknown, allowDefaultMaterial: boolean): SceneObject | null {
+function normalizeObject(obj: unknown): SceneObject | null {
   if (!obj || typeof obj !== 'object') return null
   const o = obj as Record<string, unknown>
 
@@ -138,7 +137,7 @@ function normalizeObject(obj: unknown, allowDefaultMaterial: boolean): SceneObje
   if (!VALID_TYPES.includes(o.type as PrimitiveType)) return null
   if (typeof o.color !== 'string' || !HEX_COLOR.test(o.color)) return null
 
-  const material = normalizeMaterial(o.material, allowDefaultMaterial)
+  const material = normalizeMaterial(o.material)
   if (!material) return null
 
   return {
@@ -156,6 +155,31 @@ function normalizeObject(obj: unknown, allowDefaultMaterial: boolean): SceneObje
 }
 
 /**
+ * 序列化单个对象：只输出契约字段（PRD §5）
+ * 模型实例仅 asset + file，几何体保留 color + material；运行时字段一律不外泄
+ */
+function serializeObject(object: SceneObject): SceneObject {
+  const base = {
+    id: object.id,
+    name: object.name,
+    position: object.position,
+    rotation: object.rotation,
+    scale: object.scale,
+    visible: object.visible,
+    locked: object.locked,
+  }
+  if (object.type === 'model') {
+    return { ...base, type: 'model', asset: object.asset, file: object.file }
+  }
+  return {
+    ...base,
+    type: object.type,
+    color: object.color,
+    material: { ...object.material },
+  }
+}
+
+/**
  * 序列化：把 store 数据转成可下载的 JSON 对象
  */
 export function serializeScene(
@@ -165,10 +189,10 @@ export function serializeScene(
 ): SceneFile {
   return {
     version: SCENE_SCHEMA_VERSION,
-    objects,
+    objects: objects.map(serializeObject),
     environment: {
       sky: env,
-      ground,
+      ground: { visible: ground.visible, color: ground.color },
     },
   }
 }
@@ -188,14 +212,13 @@ export function parseSceneJSON(text: string): SceneFile | null {
   if (!data || typeof data !== 'object') return null
   const d = data as Record<string, unknown>
 
-  // version 必须是字符串
-  if (typeof d.version !== 'string') return null
+  // 只接受当前版本（开发期不做旧版本兼容）
+  if (d.version !== SCENE_SCHEMA_VERSION) return null
 
-  // 1.1 对象没有 material，迁移时补默认值；1.2 起缺字段或字段非法均拒绝
   if (!Array.isArray(d.objects)) return null
   const objects: SceneObject[] = []
   for (const value of d.objects) {
-    const object = normalizeObject(value, d.version === '1.1')
+    const object = normalizeObject(value)
     if (!object) return null
     objects.push(object)
   }

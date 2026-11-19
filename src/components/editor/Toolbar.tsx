@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import type { TransformMode } from '@/types/editor'
 import { useEditorStore } from '@/store/editor'
+import { useViewStore } from '@/store/view'
+import { useAssetsStore } from '@/store/assets'
 import {
   buildExportFilename,
   parseSceneJSON,
@@ -218,9 +220,23 @@ function SaveMenu() {
   const handleExport = () => {
     // 导出只需读当前值，不需要订阅变化；直接 getState 避免 selector 返回新对象触发无限循环
     const { objects, env, ground } = useEditorStore.getState()
+    const { assets } = useAssetsStore.getState()
+    const assetIds = new Set(assets.map((a) => a.id))
+    const missing = objects.filter(
+      (o) => o.type === 'model' && !assetIds.has(o.asset),
+    ).length
+
     const file = serializeScene(objects, env, ground)
     triggerJSONDownload(JSON.stringify(file, null, 2), buildExportFilename())
-    toast.success('场景已导出为 JSON')
+    // A5-05：缺失资产照常导出，但提醒接收方准备同名文件
+    if (missing > 0) {
+      toast.info(
+        `已导出，但含 ${missing} 个缺失资产实例，接收方需在约定目录准备同名模型文件`,
+        3600,
+      )
+    } else {
+      toast.success('场景已导出为 JSON')
+    }
     setOpen(false)
   }
 
@@ -343,6 +359,13 @@ function Hotkeys({
       }
 
       if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      // 吸附开关（DEV-PLAN A4-07）：忽略长按重复
+      if (e.code === 'KeyG') {
+        if (e.repeat) return
+        useViewStore.getState().toggleSnap()
+        return
+      }
 
       const next = HOTKEYS[e.code]
       if (next) setMode(next)

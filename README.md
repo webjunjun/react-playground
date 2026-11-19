@@ -67,6 +67,7 @@ npm run dev
 | `W` / `E` / `R` | 切换平移 / 旋转 / 缩放模式 |
 | `Delete` | 删除选中对象（锁定对象需先解锁） |
 | `Ctrl/Cmd + D` | 复制选中对象 |
+| `G` | 切换拖拽吸附 |
 | `Ctrl/Cmd + Z` | 撤销 |
 | `Ctrl/Cmd + Shift + Z`、`Ctrl/Cmd + Y` | 重做 |
 | `?` | 打开 / 关闭快捷键帮助 |
@@ -99,12 +100,24 @@ src/
 
 ## 场景文件格式
 
-导出的 JSON 结构（`version` 当前为 `1.1`）：
+导出的 JSON 结构（`version` 固定为 `2.0`）：
 
 ```json
 {
-  "version": "1.1",
+  "version": "2.0",
   "objects": [
+    {
+      "id": "obj_a1b2c3d4",
+      "name": "直墙 1",
+      "type": "model",
+      "asset": "asset_9f8e7d6c",
+      "file": "wall_01.glb",
+      "position": [0, 0, 0],
+      "rotation": [0, 1.5708, 0],
+      "scale": [1, 1, 1],
+      "visible": true,
+      "locked": false
+    },
     {
       "id": "obj_1a2b3c4d",
       "name": "长方体 1",
@@ -113,6 +126,15 @@ src/
       "rotation": [0, 0, 0],
       "scale": [1, 1, 1],
       "color": "#6366f1",
+      "material": {
+        "type": "standard",
+        "wireframe": false,
+        "shininess": 30,
+        "specular": "#111111",
+        "metalness": 0.1,
+        "roughness": 0.6,
+        "flatShading": false
+      },
       "visible": true,
       "locked": false
     }
@@ -124,7 +146,37 @@ src/
 }
 ```
 
-`type` 取值：`box` | `sphere` | `cylinder` | `cone` | `torus` | `tetrahedron` | `octahedron` | `plane` | `ring` | `torus-knot` | `capsule`；`sky` 取值：`day` | `night` | `studio` | `none`。
+`type` 取值：`box` | `sphere` | `cylinder` | `cone` | `torus` | `tetrahedron` | `octahedron` | `plane` | `ring` | `torus-knot` | `capsule` | `model`；`sky` 取值：`day` | `night` | `studio` | `none`。
+
+- 坐标系：Three.js 右手系，Y 向上；`rotation` 为弧度（Euler Y-X-Z）。
+- 单位：1 世界单位 = 网格 1 格（建议 1 单位 = 1 米）。
+- `locked` 属于编辑器状态，渲染端可忽略；`environment` 可选消费；未知字段一律忽略。
+
+### 渲染端消费
+
+模型文件由使用者自行管理：把 `.glb` / `.gltf` / `.fbx` 放到约定目录（如 `public/models/`），渲染端按 `file` 加载并应用变换。`asset` 是编辑器内部键，可忽略。
+
+```ts
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+
+const MODELS_DIR = '/models/' // 约定目录
+
+for (const obj of scene.objects) {
+  if (obj.type === 'model') {
+    // 按原始文件名加载；文件需与 JSON 一并分发
+    const gltf = await new GLTFLoader().loadAsync(MODELS_DIR + obj.file)
+    gltf.scene.position.fromArray(obj.position)
+    gltf.scene.rotation.fromArray(obj.rotation) // 或 rotation.set(x, y, z, 'YXZ')
+    gltf.scene.scale.fromArray(obj.scale)
+    gltf.scene.visible = obj.visible
+    scene.add(gltf.scene)
+  } else {
+    // 几何体按 type + color + material 自行重建
+  }
+}
+```
+
+分享场景时需同时分发 JSON 与模型文件；编辑器接收方若缺文件，会以占位盒显示并提供批量重链入口。
 
 ## 文档
 
@@ -132,7 +184,7 @@ src/
 - [DEV-PLAN.md](docs/DEV-PLAN.md)：功能实现清单与进度
 - [ROADMAP.md](docs/ROADMAP.md)：V1.1 → V2 路线图
 
-时间轴动画、材质系统、GLB/GLTF 导入、分组层级、多选、PNG / 静态 HTML 导出等能力尚未接入数据，详见 DEV-PLAN 与 ROADMAP。
+时间轴动画、分组层级、多选、PNG / 静态 HTML 导出等能力尚未接入数据，详见 DEV-PLAN 与 ROADMAP。
 
 ## 许可证
 

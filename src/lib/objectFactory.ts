@@ -90,12 +90,15 @@ export function getModelDefaults(asset?: ModelAssetRef): {
   }
 }
 
-/** 复制对象：新 id、名称加“副本”后缀、X / Z 各偏移 +1（PRD 4.7） */
-export function createCopyObject(source: SceneObject): SceneObject {
+/**
+ * 复制对象：新 id、名称加“副本”后缀、X / Z 各偏移 +offset（DEV-PLAN A4-06）
+ * offset 由视图吸附配置决定：吸附开 = 1 格，关 = 0.5
+ */
+export function createCopyObject(source: SceneObject, offset: number): SceneObject {
   const position: Vector3Tuple = [
-    source.position[0] + 1,
+    source.position[0] + offset,
     source.position[1],
-    source.position[2] + 1,
+    source.position[2] + offset,
   ]
 
   if (source.type === 'model') {

@@ -1080,6 +1080,34 @@
   color: #e5e7eb;
 }
 
+/* 图标型视图按钮（吸附磁铁） */
+.view-btn-icon {
+  padding: 0 6px;
+}
+
+/* 网格大小下拉 */
+.grid-size-select {
+  height: 26px;
+  padding: 0 4px;
+  background: transparent;
+  border: 1px solid #2a2d3a;
+  border-radius: 5px;
+  color: #9ca3af;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.grid-size-select:hover {
+  color: #e5e7eb;
+  border-color: #3f4354;
+}
+
+.grid-size-select option {
+  background: #1a1d27;
+  color: #e5e7eb;
+}
+
 /* 场景列表：搜索框 + 拖拽把手 */
 .object-search {
   padding: 4px 10px 8px;

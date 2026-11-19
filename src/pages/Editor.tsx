@@ -4,7 +4,7 @@ import { Sidebar } from '@/components/editor/Sidebar'
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel'
 import { Scene } from '@/components/editor/Scene'
 import { Viewbar } from '@/components/editor/Viewbar'
-import { Timeline } from '@/components/editor/Timeline'
+// import { Timeline } from '@/components/editor/Timeline'
 import { StatusBar } from '@/components/editor/StatusBar'
 import { HelpOverlay } from '@/components/editor/HelpOverlay'
 import { ToastViewport, toast } from '@/components/ui/Toast'
@@ -68,7 +68,7 @@ export default function Editor() {
         <PropertiesPanel />
       </div>
 
-      <Timeline />
+      {/* <Timeline /> */}
 
       <StatusBar />
 

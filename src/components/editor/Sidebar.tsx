@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
+  AlertTriangle,
   Box,
   ChevronDown,
   ChevronRight,
   Copy,
+  Upload,
   X,
   FolderInput,
   GripVertical,
@@ -13,7 +15,7 @@ import {
 import { PRIMITIVE_PRESETS } from './presets'
 import type { ModelAsset, SceneObject } from '@/types/editor'
 import { useEditorStore } from '@/store/editor'
-import { useAssetsStore } from '@/store/assets'
+import { useAssetsStore, type ReimportTarget } from '@/store/assets'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from '@/components/ui/Toast'
 
@@ -59,12 +61,49 @@ function LibraryPanel() {
   const assets = useAssetsStore((s) => s.assets)
   const status = useAssetsStore((s) => s.status)
   const importFiles = useAssetsStore((s) => s.importFiles)
+  const reimportFiles = useAssetsStore((s) => s.reimportFiles)
   const removeAsset = useAssetsStore((s) => s.removeAsset)
   const deleteAssetInstances = useEditorStore((s) => s.deleteAssetInstances)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const reimportRef = useRef<HTMLInputElement | null>(null)
   const [importing, setImporting] = useState(false)
+  const [reimporting, setReimporting] = useState(false)
   const [geometryOpen, setGeometryOpen] = useState(true)
   const [pendingAsset, setPendingAsset] = useState<ModelAsset | null>(null)
+
+  // A3-01 缺失判定：场景实例 asset 不在资产库；按 asset id 去重
+  const missingTargets = useMemo<ReimportTarget[]>(() => {
+    const existingIds = new Set(assets.map((a) => a.id))
+    const seen = new Set<string>()
+    const targets: ReimportTarget[] = []
+    for (const o of objects) {
+      if (o.type !== 'model') continue
+      if (existingIds.has(o.asset)) continue
+      if (seen.has(o.asset)) continue
+      seen.add(o.asset)
+      targets.push({ assetId: o.asset, fileName: o.file })
+    }
+    return targets
+  }, [objects, assets])
+
+  const handleReimport = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0 || missingTargets.length === 0) return
+    setReimporting(true)
+    try {
+      const summary = await reimportFiles(Array.from(fileList), missingTargets)
+      if (summary.restored > 0)
+        toast.success(`已恢复 ${summary.restored} / ${summary.targets} 个缺失资产`)
+      if (summary.unmatched > 0)
+        toast.info(`${summary.unmatched} 个文件与缺失资产文件名不匹配，未使用`)
+      if (summary.invalid > 0)
+        toast.error(`${summary.invalid} 个文件格式不支持或写入失败`)
+      if (summary.restored === 0 && summary.unmatched === 0 && summary.invalid === 0)
+        toast.info('已全部恢复，无需操作')
+    } finally {
+      setReimporting(false)
+      if (reimportRef.current) reimportRef.current.value = ''
+    }
+  }
 
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return
@@ -111,6 +150,40 @@ function LibraryPanel() {
 
   return (
     <>
+      {/* A3-02 / A3-03 缺失入口 + 批量重链 */}
+      {missingTargets.length > 0 && (
+        <>
+          <div
+            className="library-missing-banner"
+            role="button"
+            tabIndex={0}
+            onClick={() => reimportRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                reimportRef.current?.click()
+              }
+            }}
+          >
+            <AlertTriangle size={14} strokeWidth={2} className="banner-icon" />
+            <span className="banner-text">
+              {reimporting
+                ? '重链中…'
+                : `${missingTargets.length} 个资产缺失，点击选择文件恢复`}
+            </span>
+            <Upload size={13} strokeWidth={2} className="banner-action" />
+          </div>
+          <input
+            ref={reimportRef}
+            type="file"
+            accept=".glb,.gltf,.fbx"
+            multiple
+            hidden
+            onChange={(e) => void handleReimport(e.target.files)}
+          />
+        </>
+      )}
+
       {/* 模型资产区（PRD §3 M1） */}
       <section className="library-section">
         <div className="library-section-head">

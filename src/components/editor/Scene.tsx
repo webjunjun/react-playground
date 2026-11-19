@@ -60,6 +60,8 @@ export function Scene() {
   const commitHistory = useEditorStore((s) => s.commitHistory)
   const view = useViewStore((s) => s.view)
   const shade = useViewStore((s) => s.shade)
+  const snapEnabled = useViewStore((s) => s.snapEnabled)
+  const gridSize = useViewStore((s) => s.gridSize)
 
   // 当前选中对象的 group 实例，供 TransformControls 绑定
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
@@ -150,10 +152,10 @@ export function Scene() {
         <Grid
           position={[0, 0.01, 0]}
           args={[40, 40]}
-          cellSize={1}
+          cellSize={gridSize}
           cellThickness={0.5}
           cellColor={env === 'night' ? '#2a3a52' : '#6b7280'}
-          sectionSize={5}
+          sectionSize={gridSize * 5}
           sectionThickness={1}
           sectionColor={env === 'night' ? '#3d5270' : '#374151'}
           fadeDistance={40}
@@ -198,6 +200,9 @@ export function Scene() {
           object={selectedGroup}
           mode={mode}
           size={GIZMO_SIZE}
+          // 吸附属于视图偏好（DEV-PLAN A4）：开启时按网格 / 90° 步进，关闭恢复自由拖拽
+          translationSnap={snapEnabled ? gridSize : null}
+          rotationSnap={snapEnabled ? Math.PI / 2 : null}
           onMouseDown={() => {
             gizmoBusy.current = true
             dragChanged.current = false

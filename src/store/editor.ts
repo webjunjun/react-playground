@@ -13,6 +13,7 @@ import { MOCK_OBJECTS } from '@/components/editor/presets'
 import { createCopyObject, createModelObject, createSceneObject } from '@/lib/objectFactory'
 import { serializeScene, writeAutosave, type SceneFile } from '@/lib/sceneIO'
 import { useAssetsStore } from '@/store/assets'
+import { useViewStore } from '@/store/view'
 
 /** 历史快照上限（PRD 7.1：最多保留 50 条，超出丢弃最旧） */
 const MAX_HISTORY = 50
@@ -184,7 +185,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => {
       const source = state.objects.find((o) => o.id === id)
       if (!source) return state
-      const copy = createCopyObject(source)
+      // 复制偏移跟随吸附配置（DEV-PLAN A4-06）：吸附开 = 1 格，关 = 0.5
+      const { snapEnabled, gridSize } = useViewStore.getState()
+      const copy = createCopyObject(source, snapEnabled ? gridSize : 0.5)
       return snapshotAndSave(state, {
         objects: [...state.objects, copy],
         selectedId: copy.id,
