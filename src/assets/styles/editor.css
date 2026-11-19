@@ -160,10 +160,12 @@
 }
 
 /* 资源库 */
+/* 资源库：卡片固定宽度，列数随面板宽度自适应；改 104px 即可统一调整卡片宽度 */
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, 104px);
   gap: 8px;
+  justify-content: start;
 }
 
 .library-item {
@@ -172,6 +174,7 @@
   align-items: center;
   gap: 6px;
   padding: 14px 8px;
+  min-width: 0;
   background: #0f1117;
   border: 1px solid #2a2d3a;
   border-radius: 8px;
@@ -735,10 +738,12 @@
 }
 
 .asset-label {
+  width: 100%;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 .asset-format {

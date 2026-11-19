@@ -11,6 +11,7 @@ import {
 import type { Group, Object3D, Vector3Tuple } from 'three'
 import { useEditorStore } from '@/store/editor'
 import { useViewStore } from '@/store/view'
+import { ENVIRONMENT_PRESETS } from '@/lib/environmentPresets'
 import type { PrimitiveObject, PrimitiveType, TransformMode } from '@/types/editor'
 import { ModelInstance } from './ModelMesh'
 
@@ -62,6 +63,8 @@ export function Scene() {
   const shade = useViewStore((s) => s.shade)
   const snapEnabled = useViewStore((s) => s.snapEnabled)
   const gridSize = useViewStore((s) => s.gridSize)
+  // 环境预设的唯一真源；视口与导出共用，避免两边配置漂移
+  const preset = ENVIRONMENT_PRESETS[env]
 
   // 当前选中对象的 group 实例，供 TransformControls 绑定
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
@@ -121,24 +124,29 @@ export function Scene() {
           far={200}
         />
       )}
-      {/* === 环境背景（PRD 5.5） === */}
-      {env === 'day' && <Sky sunPosition={[100, 20, 100]} turbidity={8} rayleigh={0.5} />}
-      {env === 'night' && (
-        <>
-          <color attach="background" args={['#0a0e1a']} />
-          <fog attach="fog" args={['#0a0e1a', 20, 60]} />
-        </>
+      {/* === 环境背景（PRD 5.5，配置见 environmentPresets） === */}
+      {preset.background.type === 'sky' && (
+        <Sky
+          sunPosition={preset.background.sunPosition}
+          turbidity={preset.background.turbidity}
+          rayleigh={preset.background.rayleigh}
+        />
       )}
-      {env === 'studio' && <color attach="background" args={['#d4d4d8']} />}
+      {preset.background.type === 'color' && (
+        <color attach="background" args={[preset.background.color]} />
+      )}
       {/* none：透明背景，不挂任何 sky/color */}
+      {preset.fog && (
+        <fog attach="fog" args={[preset.fog.color, preset.fog.near, preset.fog.far]} />
+      )}
 
-      {/* === 光照（按环境微调） === */}
-      <ambientLight intensity={env === 'night' ? 0.15 : 0.4} />
+      {/* === 光照（与导出的 lights 字段同源） === */}
+      <ambientLight intensity={preset.lights.ambient.intensity} />
       <directionalLight
-        position={[10, 20, 10]}
-        intensity={env === 'night' ? 0.4 : env === 'studio' ? 1.0 : 1.2}
-        color={env === 'night' ? '#7eb8da' : '#ffffff'}
-        castShadow={env !== 'none'}
+        position={preset.lights.directional.position}
+        intensity={preset.lights.directional.intensity}
+        color={preset.lights.directional.color}
+        castShadow={preset.lights.directional.castShadow}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-left={-30}
@@ -179,6 +187,7 @@ export function Scene() {
             key={o.id}
             object={o}
             selected={o.id === selectedId && !o.locked}
+            wireframe={shade === 'wire'}
             onPick={select}
             onBind={setSelectedGroup}
           />

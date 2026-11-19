@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import type { Group, Mesh } from 'three'
+import type { Group, Material, Mesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
@@ -41,6 +41,8 @@ function loadTemplate(assetId: string, url: string, format: ModelFormat): Promis
 interface ModelInstanceProps {
   object: ModelObject
   selected: boolean
+  /** 全局线框视图（视图偏好，非对象私有材质） */
+  wireframe: boolean
   onPick: (id: string) => void
   onBind: (node: Group | null) => void
 }
@@ -49,7 +51,13 @@ interface ModelInstanceProps {
  * 模型实例（PRD §3 M1）
  * 与几何体共用 group 变换 / 拾取 / Gizmo 通路；同资产多实例用 SkeletonUtils.clone 隔离
  */
-export function ModelInstance({ object, selected, onPick, onBind }: ModelInstanceProps) {
+export function ModelInstance({
+  object,
+  selected,
+  wireframe,
+  onPick,
+  onBind,
+}: ModelInstanceProps) {
   const asset = useAssetsStore((state) =>
     state.assets.find((item) => item.id === object.asset),
   )
@@ -82,6 +90,21 @@ export function ModelInstance({ object, selected, onPick, onBind }: ModelInstanc
     () => (template ? cloneSkeleton(template) : null),
     [template],
   )
+
+  // 全局线框：第三方模型材质由文件自带，需逐 Mesh 切换
+  // 材质在实例间共享，因此只改 wireframe 标记，不克隆材质，避免纹理重复占用显存
+  useEffect(() => {
+    if (!instance) return
+    instance.traverse((child) => {
+      const mesh = child as Mesh
+      if (!mesh.isMesh) return
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      for (const material of materials) {
+        const target = material as Material & { wireframe?: boolean }
+        if (target.wireframe !== undefined) target.wireframe = wireframe
+      }
+    })
+  }, [instance, wireframe])
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()

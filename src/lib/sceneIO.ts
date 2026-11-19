@@ -5,11 +5,16 @@ import type {
   MaterialConfig,
   MaterialType,
   PrimitiveType,
+  SceneBackground,
+  SceneEnvironmentConfig,
+  SceneFogConfig,
+  SceneLightsConfig,
   SceneObject,
 } from '@/types/editor'
+import { ENVIRONMENT_PRESETS, GROUND_SIZE } from './environmentPresets'
 
-/** JSON schema 版本号（PRD §5） */
-export const SCENE_SCHEMA_VERSION = '2.0'
+/** JSON schema 版本号（PRD §5；仅接受当前版本） */
+export const SCENE_SCHEMA_VERSION = '2.1'
 
 /** localStorage 自动草稿 key（PRD 4.9） */
 export const AUTOSAVE_KEY = 'editor.autosave'
@@ -21,10 +26,7 @@ export const EXPORT_PREFIX = 'scene-'
 export interface SceneFile {
   version: string
   objects: SceneObject[]
-  environment: {
-    sky: EnvironmentKey
-    ground: GroundConfig
-  }
+  environment: SceneEnvironmentConfig
 }
 
 /** PrimitiveType 白名单（校验用） */
@@ -65,7 +67,80 @@ function isVec3(value: unknown): value is Vector3Tuple {
   )
 }
 
-/** 校验并归一化材质；2.0 起几何体材质必填 */
+/** 校验有限数字 */
+function isNum(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+/** 校验背景：color / sky / transparent 三选一 */
+function normalizeBackground(value: unknown): SceneBackground | null {
+  if (!value || typeof value !== 'object') return null
+  const b = value as Record<string, unknown>
+
+  if (b.type === 'transparent') return { type: 'transparent' }
+  if (b.type === 'color') {
+    if (typeof b.color !== 'string' || !HEX_COLOR.test(b.color)) return null
+    return { type: 'color', color: b.color }
+  }
+  if (b.type === 'sky') {
+    if (!isVec3(b.sunPosition) || !isNum(b.turbidity) || !isNum(b.rayleigh)) return null
+    return {
+      type: 'sky',
+      sunPosition: b.sunPosition,
+      turbidity: b.turbidity,
+      rayleigh: b.rayleigh,
+    }
+  }
+  return null
+}
+
+/** 校验雾（顶层 null 由调用方处理） */
+function normalizeFog(value: unknown): SceneFogConfig | null {
+  if (!value || typeof value !== 'object') return null
+  const f = value as Record<string, unknown>
+  if (typeof f.color !== 'string' || !HEX_COLOR.test(f.color)) return null
+  if (!isNum(f.near) || !isNum(f.far)) return null
+  return { color: f.color, near: f.near, far: f.far }
+}
+
+/** 校验灯光 */
+function normalizeLights(value: unknown): SceneLightsConfig | null {
+  if (!value || typeof value !== 'object') return null
+  const l = value as Record<string, unknown>
+  const ambient = l.ambient
+  const directional = l.directional as Record<string, unknown> | undefined
+
+  if (!ambient || typeof ambient !== 'object') return null
+  if (!isNum((ambient as Record<string, unknown>).intensity)) return null
+  if (!directional || typeof directional !== 'object') return null
+  if (typeof directional.color !== 'string' || !HEX_COLOR.test(directional.color)) return null
+  if (!isNum(directional.intensity) || !isVec3(directional.position)) return null
+  if (typeof directional.castShadow !== 'boolean') return null
+
+  return {
+    ambient: { intensity: (ambient as { intensity: number }).intensity },
+    directional: {
+      color: directional.color,
+      intensity: directional.intensity,
+      position: directional.position,
+      castShadow: directional.castShadow,
+    },
+  }
+}
+
+/** 缺省环境：日间预设 + 默认地面 */
+function defaultEnvironment(): SceneEnvironmentConfig {
+  const preset = ENVIRONMENT_PRESETS.day
+  return {
+    sky: 'day',
+    background: preset.background,
+    fog: preset.fog,
+    lights: preset.lights,
+    ground: { visible: true, color: '#475569', size: GROUND_SIZE },
+  }
+}
+
+/** 校验并归一化材质；几何体材质必填 */
 function normalizeMaterial(value: unknown): MaterialConfig | null {
   if (value === undefined) return null
   if (!value || typeof value !== 'object') return null
@@ -181,18 +256,27 @@ function serializeObject(object: SceneObject): SceneObject {
 
 /**
  * 序列化：把 store 数据转成可下载的 JSON 对象
+ * 环境按预设解析成具体值，外部应用可直接套用，不需要复刻编辑器的预设表
  */
 export function serializeScene(
   objects: SceneObject[],
   env: EnvironmentKey,
   ground: GroundConfig,
 ): SceneFile {
+  const preset = ENVIRONMENT_PRESETS[env]
   return {
     version: SCENE_SCHEMA_VERSION,
     objects: objects.map(serializeObject),
     environment: {
       sky: env,
-      ground: { visible: ground.visible, color: ground.color },
+      background: preset.background,
+      fog: preset.fog,
+      lights: preset.lights,
+      ground: {
+        visible: ground.visible,
+        color: ground.color,
+        size: GROUND_SIZE,
+      },
     },
   }
 }
@@ -223,33 +307,54 @@ export function parseSceneJSON(text: string): SceneFile | null {
     objects.push(object)
   }
 
-  // environment 可选；如果提供了必须合法
-  if (d.environment !== undefined) {
+  // environment 可选；字段缺失时按 sky 预设补全（2.1 起导出的是解析后的具体值）
+  let environment: SceneEnvironmentConfig
+  if (d.environment === undefined) {
+    environment = defaultEnvironment()
+  } else {
     if (typeof d.environment !== 'object' || d.environment === null) return null
-    const env = d.environment as Record<string, unknown>
-    if (env.sky !== undefined && !VALID_ENVS.includes(env.sky as EnvironmentKey))
-      return null
-    if (env.ground !== undefined) {
-      if (typeof env.ground !== 'object' || env.ground === null) return null
-      const g = env.ground as Record<string, unknown>
+    const raw = d.environment as Record<string, unknown>
+
+    const sky = raw.sky === undefined ? 'day' : raw.sky
+    if (!VALID_ENVS.includes(sky as EnvironmentKey)) return null
+    const base = ENVIRONMENT_PRESETS[sky as EnvironmentKey]
+
+    const background =
+      raw.background === undefined ? base.background : normalizeBackground(raw.background)
+    if (!background) return null
+
+    const fog =
+      raw.fog === undefined ? base.fog : raw.fog === null ? null : normalizeFog(raw.fog)
+    if (raw.fog !== undefined && raw.fog !== null && !fog) return null
+
+    const lights = raw.lights === undefined ? base.lights : normalizeLights(raw.lights)
+    if (!lights) return null
+
+    let ground: SceneEnvironmentConfig['ground'] = {
+      visible: true,
+      color: '#475569',
+      size: GROUND_SIZE,
+    }
+    if (raw.ground !== undefined) {
+      if (typeof raw.ground !== 'object' || raw.ground === null) return null
+      const g = raw.ground as Record<string, unknown>
       if (typeof g.visible !== 'boolean') return null
       if (typeof g.color !== 'string' || !HEX_COLOR.test(g.color)) return null
+      if (g.size !== undefined && (!isNum(g.size) || g.size <= 0)) return null
+      ground = {
+        visible: g.visible,
+        color: g.color,
+        size: g.size === undefined ? GROUND_SIZE : (g.size as number),
+      }
     }
-  }
 
-  // 组装最终结构（environment 缺失时补默认值）
-  const env = (d.environment as SceneFile['environment'] | undefined) ?? {
-    sky: 'day',
-    ground: { visible: true, color: '#475569' },
+    environment = { sky: sky as EnvironmentKey, background, fog, lights, ground }
   }
 
   return {
     version: SCENE_SCHEMA_VERSION,
     objects,
-    environment: {
-      sky: env.sky ?? 'day',
-      ground: env.ground ?? { visible: true, color: '#475569' },
-    },
+    environment,
   }
 }
 

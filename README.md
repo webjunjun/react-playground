@@ -100,11 +100,11 @@ src/
 
 ## 场景文件格式
 
-导出的 JSON 结构（`version` 固定为 `2.0`）：
+导出的 JSON 结构（`version` 固定为 `2.1`，导入仅接受该版本）：
 
 ```json
 {
-  "version": "2.0",
+  "version": "2.1",
   "objects": [
     {
       "id": "obj_a1b2c3d4",
@@ -141,42 +141,111 @@ src/
   ],
   "environment": {
     "sky": "day",
-    "ground": { "visible": true, "color": "#475569" }
+    "background": {
+      "type": "sky",
+      "sunPosition": [100, 20, 100],
+      "turbidity": 8,
+      "rayleigh": 0.5
+    },
+    "fog": null,
+    "lights": {
+      "ambient": { "intensity": 0.4 },
+      "directional": {
+        "color": "#ffffff",
+        "intensity": 1.2,
+        "position": [10, 20, 10],
+        "castShadow": true
+      }
+    },
+    "ground": { "visible": true, "color": "#475569", "size": 20 }
   }
 }
 ```
 
 `type` 取值：`box` | `sphere` | `cylinder` | `cone` | `torus` | `tetrahedron` | `octahedron` | `plane` | `ring` | `torus-knot` | `capsule` | `model`；`sky` 取值：`day` | `night` | `studio` | `none`。
 
-- 坐标系：Three.js 右手系，Y 向上；`rotation` 为弧度（Euler Y-X-Z）。
+- 坐标系：Three.js 右手系，Y 向上；`rotation` 为弧度，欧拉顺序 **XYZ**（Three.js 默认），直接 `rotation.fromArray` 即可。
 - 单位：1 世界单位 = 网格 1 格（建议 1 单位 = 1 米）。
-- `locked` 属于编辑器状态，渲染端可忽略；`environment` 可选消费；未知字段一律忽略。
+- 环境：`background / fog / lights / ground` 已是解析后的具体值，加载端直接套用；`sky` 仅作提示，可忽略。`background.type` 取 `color` / `sky` / `transparent`。
+- `locked` 属于编辑器状态，渲染端可忽略；吸附与网格属于视图偏好，不在 JSON 中；未知字段一律忽略。
 
 ### 渲染端消费
 
-模型文件由使用者自行管理：把 `.glb` / `.gltf` / `.fbx` 放到约定目录（如 `public/models/`），渲染端按 `file` 加载并应用变换。`asset` 是编辑器内部键，可忽略。
+模型文件由使用者自行管理：把 `.glb` / `.gltf` / `.fbx` 放到约定目录（如 `public/models/`），渲染端按 `file` 加载并应用变换。`asset` 是编辑器内部键，可忽略。约定目录属于部署配置，不要写进 JSON。
 
 ```ts
+import {
+  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog,
+  Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace,
+} from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { Sky } from 'three/examples/jsm/objects/Sky.js'
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 
-const MODELS_DIR = '/models/' // 约定目录
+const MODELS_DIR = '/models/'
+const loader = new GLTFLoader()
 
-for (const obj of scene.objects) {
-  if (obj.type === 'model') {
-    // 按原始文件名加载；文件需与 JSON 一并分发
-    const gltf = await new GLTFLoader().loadAsync(MODELS_DIR + obj.file)
-    gltf.scene.position.fromArray(obj.position)
-    gltf.scene.rotation.fromArray(obj.rotation) // 或 rotation.set(x, y, z, 'YXZ')
-    gltf.scene.scale.fromArray(obj.scale)
-    gltf.scene.visible = obj.visible
-    scene.add(gltf.scene)
-  } else {
-    // 几何体按 type + color + material 自行重建
+// 同一 file 只解析一次；多实例 clone 共享几何体 / 材质 / 纹理，避免重复占显存
+const templates = new Map<string, ReturnType<typeof loader.loadAsync>>()
+function loadTemplate(file: string) {
+  let task = templates.get(file)
+  if (!task) {
+    task = loader.loadAsync(MODELS_DIR + file)
+    templates.set(file, task)
   }
+  return task
+}
+
+for (const obj of data.objects) {
+  if (obj.type !== 'model' || obj.visible === false) continue
+  const node = cloneSkeleton((await loadTemplate(obj.file)).scene)
+  node.position.fromArray(obj.position)
+  node.rotation.fromArray(obj.rotation) // 默认 XYZ 顺序，与编辑器一致
+  node.scale.fromArray(obj.scale)
+  scene.add(node)
+}
+
+// 环境：字段已是具体值，直接套用；lights 可按应用自身美术方向覆盖
+const env = data.environment
+if (env.background.type === 'color') scene.background = new Color(env.background.color)
+if (env.background.type === 'sky') {
+  const sky = new Sky()
+  sky.scale.setScalar(1000)
+  const uniforms = sky.material.uniforms
+  uniforms.sunPosition.value.fromArray(env.background.sunPosition)
+  uniforms.turbidity.value = env.background.turbidity
+  uniforms.rayleigh.value = env.background.rayleigh
+  scene.add(sky)
+}
+// transparent：保持 scene.background = null
+
+if (env.fog) scene.fog = new Fog(env.fog.color, env.fog.near, env.fog.far)
+
+scene.add(new AmbientLight(0xffffff, env.lights.ambient.intensity))
+const sun = new DirectionalLight(
+  env.lights.directional.color,
+  env.lights.directional.intensity,
+)
+sun.position.fromArray(env.lights.directional.position)
+sun.castShadow = env.lights.directional.castShadow
+scene.add(sun)
+
+renderer.shadowMap.enabled = env.lights.directional.castShadow
+renderer.outputColorSpace = SRGBColorSpace
+renderer.toneMapping = ACESFilmicToneMapping // 与编辑器 R3F 默认一致
+
+if (env.ground.visible) {
+  const ground = new Mesh(
+    new PlaneGeometry(env.ground.size, env.ground.size),
+    new MeshStandardMaterial({ color: env.ground.color }),
+  )
+  ground.rotation.x = -Math.PI / 2
+  ground.receiveShadow = true
+  scene.add(ground)
 }
 ```
 
-分享场景时需同时分发 JSON 与模型文件；编辑器接收方若缺文件，会以占位盒显示并提供批量重链入口。
+纹理不需要额外传递：贴图随自包含 `.glb` 一起分发，`clone` 出来的实例共享同一份纹理。分享场景时需同时分发 JSON 与模型文件；编辑器接收方若缺文件，会以占位盒显示并提供批量重链入口。
 
 ## 文档
 

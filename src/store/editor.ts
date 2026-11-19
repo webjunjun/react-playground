@@ -255,14 +255,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   replaceScene: (file) =>
     set(() => {
       const { objects, environment } = file
+      // 地面在编辑器内固定尺寸，导入时只取可编辑字段
+      const ground = {
+        visible: environment.ground.visible,
+        color: environment.ground.color,
+      }
       const freshEntry: HistoryEntry = { objects, selectedId: null }
       // 导入后也写一次 autosave，覆盖旧草稿
-      writeAutosave(serializeScene(objects, environment.sky, environment.ground))
+      writeAutosave(serializeScene(objects, environment.sky, ground))
       return {
         objects,
         selectedId: null,
         env: environment.sky,
-        ground: environment.ground,
+        ground,
         history: [freshEntry],
         historyIndex: 0,
       }

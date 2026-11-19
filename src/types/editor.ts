@@ -97,3 +97,36 @@ export type TransformMode = 'translate' | 'rotate' | 'scale'
 
 /** 环境预设（PRD 5.5） */
 export type EnvironmentKey = 'day' | 'night' | 'studio' | 'none'
+
+/** 场景背景：纯色 / 程序化天空 / 透明（对应预设「无」） */
+export type SceneBackground =
+  | { type: 'color'; color: string }
+  | { type: 'sky'; sunPosition: Vector3Tuple; turbidity: number; rayleigh: number }
+  | { type: 'transparent' }
+
+/** 雾（PRD §5，导出给外部应用） */
+export interface SceneFogConfig {
+  color: string
+  near: number
+  far: number
+}
+
+/** 灯光（PRD §5，导出给外部应用） */
+export interface SceneLightsConfig {
+  ambient: { intensity: number }
+  directional: {
+    color: string
+    intensity: number
+    position: Vector3Tuple
+    castShadow: boolean
+  }
+}
+
+/** 环境快照：编辑器内部只认预设 key，导出时解析成外部应用可直接套用的值（PRD §5.1） */
+export interface SceneEnvironmentConfig {
+  sky: EnvironmentKey
+  background: SceneBackground
+  fog: SceneFogConfig | null
+  lights: SceneLightsConfig
+  ground: { visible: boolean; color: string; size: number }
+}
