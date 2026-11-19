@@ -11,6 +11,7 @@ import { ToastViewport, toast } from '@/components/ui/Toast'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { clearAutosave, readAutosave, type SceneFile } from '@/lib/sceneIO'
 import { useEditorStore } from '@/store/editor'
+import { useAssetsStore } from '@/store/assets'
 import '@/assets/styles/editor.css'
 
 /**
@@ -21,12 +22,20 @@ import '@/assets/styles/editor.css'
 export default function Editor() {
   const [draft, setDraft] = useState<SceneFile | null>(null)
   const replaceScene = useEditorStore((s) => s.replaceScene)
+  const hydrateAssets = useAssetsStore((s) => s.hydrate)
 
-  // 挂载时检查是否有自动草稿（PRD 4.9）
+  // 先恢复资产库，再检查自动草稿，避免模型实例先渲染成缺失态（PRD §3 M1）
   useEffect(() => {
-    const saved = readAutosave()
-    if (saved) setDraft(saved)
-  }, [])
+    let cancelled = false
+    void hydrateAssets().then(() => {
+      if (cancelled) return
+      const saved = readAutosave()
+      if (saved) setDraft(saved)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [hydrateAssets])
 
   const handleRestore = () => {
     if (!draft) return

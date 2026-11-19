@@ -1,5 +1,11 @@
 import type { Vector3Tuple } from 'three'
-import type { PrimitiveType, SceneObject } from '@/types/editor'
+import type {
+  ModelAssetRef,
+  ModelObject,
+  PrimitiveObject,
+  PrimitiveType,
+  SceneObject,
+} from '@/types/editor'
 import {
   DEFAULT_MATERIAL,
   PRIMITIVE_DEFAULTS,
@@ -25,7 +31,10 @@ export function createObjectName(type: PrimitiveType, objects: SceneObject[]): s
 }
 
 /** 按类型默认值表创建一个场景对象 */
-export function createSceneObject(type: PrimitiveType, objects: SceneObject[]): SceneObject {
+export function createSceneObject(
+  type: PrimitiveType,
+  objects: SceneObject[],
+): PrimitiveObject {
   const defaults = PRIMITIVE_DEFAULTS[type]
   return {
     id: createObjectId(),
@@ -41,13 +50,70 @@ export function createSceneObject(type: PrimitiveType, objects: SceneObject[]): 
   }
 }
 
+/**
+ * 模型实例：只存资产引用（PRD §4）
+ * 默认 position / rotation 归零，scale = unitScale × 3；名称按同资产实例数递增
+ */
+export function createModelObject(
+  asset: ModelAssetRef,
+  objects: SceneObject[],
+): ModelObject {
+  const count = objects.filter(
+    (o) => o.type === 'model' && o.asset === asset.id,
+  ).length
+  const scale = (asset.unitScale ?? 1) * 3
+  return {
+    id: createObjectId(),
+    name: `${asset.name} ${count + 1}`,
+    type: 'model',
+    asset: asset.id,
+    file: asset.fileName,
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [scale, scale, scale],
+    visible: true,
+    locked: false,
+  }
+}
+
+/** 模型实例的默认变换（属性面板重置用） */
+export function getModelDefaults(asset?: ModelAssetRef): {
+  position: Vector3Tuple
+  rotation: Vector3Tuple
+  scale: Vector3Tuple
+} {
+  const scale = (asset?.unitScale ?? 1) * 3
+  return {
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [scale, scale, scale],
+  }
+}
+
 /** 复制对象：新 id、名称加“副本”后缀、X / Z 各偏移 +1（PRD 4.7） */
 export function createCopyObject(source: SceneObject): SceneObject {
+  const position: Vector3Tuple = [
+    source.position[0] + 1,
+    source.position[1],
+    source.position[2] + 1,
+  ]
+
+  if (source.type === 'model') {
+    return {
+      ...source,
+      id: createObjectId(),
+      name: `${source.name} 副本`,
+      position,
+      rotation: [...source.rotation] as Vector3Tuple,
+      scale: [...source.scale] as Vector3Tuple,
+    }
+  }
+
   return {
     ...source,
     id: createObjectId(),
     name: `${source.name} 副本`,
-    position: [source.position[0] + 1, source.position[1], source.position[2] + 1],
+    position,
     rotation: [...source.rotation] as Vector3Tuple,
     scale: [...source.scale] as Vector3Tuple,
     material: { ...source.material },

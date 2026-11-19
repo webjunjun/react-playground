@@ -1,9 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
-import { Copy, X, FolderInput, GripVertical, Lock, LockOpen } from 'lucide-react'
+import {
+  Box,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  X,
+  FolderInput,
+  GripVertical,
+  Lock,
+  LockOpen,
+} from 'lucide-react'
 import { PRIMITIVE_PRESETS } from './presets'
-import type { SceneObject } from '@/types/editor'
+import type { ModelAsset, SceneObject } from '@/types/editor'
 import { useEditorStore } from '@/store/editor'
+import { useAssetsStore } from '@/store/assets'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { toast } from '@/components/ui/Toast'
 
 /** 侧栏：资源库卡片接添加行为；场景 Tab 的计数、选中与列表读写 store */
 export function Sidebar() {
@@ -42,30 +54,175 @@ export function Sidebar() {
 
 function LibraryPanel() {
   const addObject = useEditorStore((s) => s.addObject)
+  const addModel = useEditorStore((s) => s.addModel)
+  const objects = useEditorStore((s) => s.objects)
+  const assets = useAssetsStore((s) => s.assets)
+  const status = useAssetsStore((s) => s.status)
+  const importFiles = useAssetsStore((s) => s.importFiles)
+  const removeAsset = useAssetsStore((s) => s.removeAsset)
+  const deleteAssetInstances = useEditorStore((s) => s.deleteAssetInstances)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [geometryOpen, setGeometryOpen] = useState(true)
+  const [pendingAsset, setPendingAsset] = useState<ModelAsset | null>(null)
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return
+    setImporting(true)
+    try {
+      const summary = await importFiles(Array.from(fileList))
+      if (summary.added > 0) toast.success(`已导入 ${summary.added} 个模型`)
+      if (summary.skipped > 0)
+        toast.info(`${summary.skipped} 个文件与已有资产重复，已跳过`)
+      if (summary.invalid > 0)
+        toast.error(`${summary.invalid} 个文件格式不支持或写入失败`)
+      if (summary.external > 0)
+        toast.info('gltf / fbx 的外部贴图与依赖无法随文件读取，建议使用自包含 glb')
+    } finally {
+      setImporting(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteAsset = async (asset: ModelAsset) => {
+    const refs = objects.filter(
+      (o) => o.type === 'model' && o.asset === asset.id,
+    ).length
+    if (refs > 0) {
+      setPendingAsset(asset)
+      return
+    }
+    await removeAsset(asset.id)
+    toast.success(`已删除资产「${asset.name}」`)
+  }
+
+  const confirmDeleteAsset = async () => {
+    if (!pendingAsset) return
+    const asset = pendingAsset
+    const removed = deleteAssetInstances(asset.id, asset)
+    await removeAsset(asset.id)
+    setPendingAsset(null)
+    toast.success(`已删除资产「${asset.name}」及 ${removed} 个实例，可撤销`)
+  }
+
+  const pendingRefs = pendingAsset
+    ? objects.filter((o) => o.type === 'model' && o.asset === pendingAsset.id).length
+    : 0
 
   return (
-    <div className="library-grid">
-      {PRIMITIVE_PRESETS.map((p) => {
-        const Icon = p.Icon
-        return (
-          <button
-            key={p.type}
-            className="library-item"
-            title={`添加${p.label}`}
-            onClick={() => addObject(p.type)}
-          >
-            <Icon size={26} strokeWidth={1.8} className="library-icon" />
-            <span className="library-label">{p.label}</span>
-          </button>
-        )
-      })}
+    <>
+      {/* 模型资产区（PRD §3 M1） */}
+      <section className="library-section">
+        <div className="library-section-head">
+          <span>模型资产</span>
+          <span className="library-count">{assets.length}</span>
+        </div>
 
-      {/* 导入模型（P2 6.1） */}
-      <button className="library-item import-item" title="导入 GLB / GLTF 模型">
-        <FolderInput size={26} strokeWidth={1.8} className="library-icon" />
-        <span className="library-label">导入模型</span>
-      </button>
-    </div>
+        <div className="library-grid">
+          <button
+            className="library-item import-item"
+            title="导入 GLB / GLTF / FBX 模型"
+            disabled={importing}
+            onClick={() => inputRef.current?.click()}
+          >
+            <FolderInput size={26} strokeWidth={1.8} className="library-icon" />
+            <span className="library-label">{importing ? '导入中…' : '导入模型'}</span>
+          </button>
+
+          {assets.map((asset) => (
+            <div
+              key={asset.id}
+              className="library-item asset-item"
+              role="button"
+              tabIndex={0}
+              title={`${asset.fileName}（${asset.format.toUpperCase()}）`}
+              onClick={() => addModel(asset)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  addModel(asset)
+                }
+              }}
+            >
+              <Box size={26} strokeWidth={1.8} className="library-icon" />
+              <span className="library-label asset-label">{asset.name}</span>
+              <span className="asset-format">{asset.format}</span>
+              <button
+                className="asset-delete"
+                title="删除资产"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void handleDeleteAsset(asset)
+                }}
+              >
+                <X size={12} strokeWidth={2.5} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {status === 'ready' && assets.length === 0 && (
+          <p className="library-empty">
+            还没有模型资产，点击上方导入 .glb / .gltf / .fbx
+          </p>
+        )}
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".glb,.gltf,.fbx"
+          multiple
+          hidden
+          onChange={(e) => void handleFiles(e.target.files)}
+        />
+      </section>
+
+      {/* 几何体区（可折叠） */}
+      <section className="library-section">
+        <button
+          className="library-section-head collapsible"
+          onClick={() => setGeometryOpen((v) => !v)}
+          title={geometryOpen ? '折叠几何体' : '展开几何体'}
+        >
+          <span>几何体</span>
+          {geometryOpen ? (
+            <ChevronDown size={14} strokeWidth={2} />
+          ) : (
+            <ChevronRight size={14} strokeWidth={2} />
+          )}
+        </button>
+
+        {geometryOpen && (
+          <div className="library-grid">
+            {PRIMITIVE_PRESETS.map((p) => {
+              const Icon = p.Icon
+              return (
+                <button
+                  key={p.type}
+                  className="library-item"
+                  title={`添加${p.label}`}
+                  onClick={() => addObject(p.type)}
+                >
+                  <Icon size={26} strokeWidth={1.8} className="library-icon" />
+                  <span className="library-label">{p.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {pendingAsset && (
+        <ConfirmDialog
+          title="删除模型资产"
+          message={`「${pendingAsset.name}」被 ${pendingRefs} 个实例引用，删除资产会一并删除这些实例；可通过撤销恢复。`}
+          confirmLabel="删除资产与实例"
+          danger
+          onCancel={() => setPendingAsset(null)}
+          onConfirm={() => void confirmDeleteAsset()}
+        />
+      )}
+    </>
   )
 }
 
@@ -298,7 +455,10 @@ function ObjectRow({
             checked={object.visible}
             onChange={() => toggleVisible(object.id)}
           />
-          <span className="color-dot" style={{ background: object.color }} />
+          <span
+            className="color-dot"
+            style={{ background: object.type === 'model' ? '#64748b' : object.color }}
+          />
         </label>
 
         <span className="object-name">{object.name}</span>

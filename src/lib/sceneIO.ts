@@ -111,13 +111,32 @@ function normalizeObject(obj: unknown, allowDefaultMaterial: boolean): SceneObje
 
   if (typeof o.id !== 'string' || o.id.length === 0) return null
   if (typeof o.name !== 'string') return null
-  if (!VALID_TYPES.includes(o.type as PrimitiveType)) return null
   if (!isVec3(o.position)) return null
   if (!isVec3(o.rotation)) return null
   if (!isVec3(o.scale)) return null
-  if (typeof o.color !== 'string' || !HEX_COLOR.test(o.color)) return null
   if (typeof o.visible !== 'boolean') return null
   if (typeof o.locked !== 'boolean') return null
+
+  // 模型实例：只认资产引用，不允许带颜色 / 材质
+  if (o.type === 'model') {
+    if (typeof o.asset !== 'string' || o.asset.length === 0) return null
+    if (typeof o.file !== 'string' || o.file.length === 0) return null
+    return {
+      id: o.id,
+      name: o.name,
+      type: 'model',
+      asset: o.asset,
+      file: o.file,
+      position: o.position,
+      rotation: o.rotation,
+      scale: o.scale,
+      visible: o.visible,
+      locked: o.locked,
+    }
+  }
+
+  if (!VALID_TYPES.includes(o.type as PrimitiveType)) return null
+  if (typeof o.color !== 'string' || !HEX_COLOR.test(o.color)) return null
 
   const material = normalizeMaterial(o.material, allowDefaultMaterial)
   if (!material) return null

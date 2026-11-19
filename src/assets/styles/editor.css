@@ -675,6 +675,112 @@
   border-color: #3a3e4d;
 }
 
+/* ---------- 资源库分区（M1 模型资产） ---------- */
+
+.library-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.library-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px 4px;
+  border: none;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.library-section-head.collapsible {
+  cursor: pointer;
+}
+
+.library-section-head.collapsible:hover {
+  color: #ffffff;
+}
+
+.library-count {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.library-empty {
+  margin: 4px 2px 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.library-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.library-item.asset-item {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+}
+
+.library-item.asset-item:focus-visible {
+  border-color: var(--accent);
+}
+
+.asset-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-format {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  padding: 0 3px;
+  border: 1px solid #2a2d3a;
+  border-radius: 3px;
+  background: #1a1d27;
+  color: #9ca3af;
+  font-size: 9px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.asset-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(15, 17, 23, 0.9);
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.asset-item:hover .asset-delete,
+.asset-delete:focus-visible {
+  display: flex;
+}
+
+.asset-delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
 /* 属性面板分组标题 */
 .panel-section-title {
   font-size: 12px;
@@ -1095,4 +1201,59 @@
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-top: 6px solid #ef4444;
+}
+
+/* ---------- 模型实例：只读资产信息 / 缺失态（A2） ---------- */
+
+.prop-readonly {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 7px 10px;
+  border: 1px solid #2a2d3a;
+  border-radius: 6px;
+  background: #151822;
+  color: #9ca3af;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-missing-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.model-missing-action {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 5px;
+  background: transparent;
+  color: #fbbf24;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.model-missing-action:hover {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.model-placeholder-label {
+  padding: 4px 8px;
+  border: 1px solid #3a3e4d;
+  border-radius: 4px;
+  background: rgba(15, 17, 23, 0.9);
+  color: #cbd5e1;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
 }

@@ -2,7 +2,14 @@ import { Fragment, useRef, useState } from 'react'
 import { RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Vector3Tuple } from 'three'
 import { useEditorStore } from '@/store/editor'
-import type { MaterialConfig, MaterialType, SceneObject } from '@/types/editor'
+import { useAssetsStore } from '@/store/assets'
+import { toast } from '@/components/ui/Toast'
+import type {
+  MaterialConfig,
+  MaterialType,
+  PrimitiveObject,
+} from '@/types/editor'
+import { getModelDefaults } from '@/lib/objectFactory'
 import { PRIMITIVE_DEFAULTS } from './presets'
 
 /** 环境预设（P1 5.5），默认日间 */
@@ -13,6 +20,13 @@ const ENV_PRESETS = [
   { key: 'none', label: '无', sky: '透明', grid: '隐藏', shadow: '禁用' },
 ] as const
 
+/** 资产文件大小展示：B / KB / MB */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 /**
  * 属性面板：选中对象、环境、地面读写 store；
  * 对象字段的提交逻辑见 DEV-PLAN #5
@@ -21,6 +35,12 @@ export function PropertiesPanel() {
   const object = useEditorStore(
     (s) => s.objects.find((o) => o.id === s.selectedId) ?? null,
   )
+  const asset = useAssetsStore((s) =>
+    s.assets.find((item) => item.id === (object?.type === 'model' ? object.asset : '')),
+  )
+  const assetsStatus = useAssetsStore((s) => s.status)
+  const defaults =
+    object?.type === 'model' ? getModelDefaults(asset) : object ? PRIMITIVE_DEFAULTS[object.type] : null
   const ground = useEditorStore((s) => s.ground)
   const setGround = useEditorStore((s) => s.setGround)
   const env = useEditorStore((s) => s.env)
@@ -92,17 +112,53 @@ export function PropertiesPanel() {
             />
           </Field>
 
-          {/* 颜色：取色器实时写入，失焦时提交一条历史快照 */}
-          <Field label="颜色">
-            <input
-              type="color"
-              value={object.color}
-              disabled={object.material.type === 'normal'}
-              style={{ width: 60 }}
-              onChange={(e) => updateObject(object.id, { color: e.target.value })}
-              onBlur={() => commitHistory()}
-            />
-          </Field>
+          {/* 模型实例：只读资产信息 + 缺失警示（PRD §3 M1 / M2 验收） */}
+          {object.type === 'model' && (
+            <>
+              <Field label="资产">
+                <span className="prop-readonly" title={asset?.fileName ?? object.file}>
+                  {asset?.fileName ?? object.file}
+                </span>
+              </Field>
+              <Field label="格式">
+                <span className="prop-readonly">
+                  {asset ? asset.format.toUpperCase() : '缺失'}
+                </span>
+              </Field>
+              <Field label="大小">
+                <span className="prop-readonly">
+                  {asset ? formatFileSize(asset.size) : '—'}
+                </span>
+              </Field>
+              {assetsStatus === 'ready' && !asset && (
+                <div className="model-missing-warning">
+                  <span>资产缺失，实例仅显示占位盒。</span>
+                  <button
+                    className="model-missing-action"
+                    onClick={() =>
+                      toast.info('请先在资源库重新导入同名文件；批量重链将在 A3 支持')
+                    }
+                  >
+                    重新关联
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 颜色：取色器实时写入，失焦时提交一条历史快照；模型实例不适用 */}
+          {object.type !== 'model' && (
+            <Field label="颜色">
+              <input
+                type="color"
+                value={object.color}
+                disabled={object.material.type === 'normal'}
+                style={{ width: 60 }}
+                onChange={(e) => updateObject(object.id, { color: e.target.value })}
+                onBlur={() => commitHistory()}
+              />
+            </Field>
+          )}
 
           {/* 位置 */}
           <Vector3Field
@@ -117,7 +173,7 @@ export function PropertiesPanel() {
               commitHistory()
             }}
             onReset={() => {
-              const pos = PRIMITIVE_DEFAULTS[object.type].position
+              const pos = defaults!.position
               updateObject(object.id, { position: [...pos] as Vector3Tuple })
               commitHistory()
             }}
@@ -136,7 +192,7 @@ export function PropertiesPanel() {
               commitHistory()
             }}
             onReset={() => {
-              const rot = PRIMITIVE_DEFAULTS[object.type].rotation
+              const rot = defaults!.rotation
               updateObject(object.id, { rotation: [...rot] as Vector3Tuple })
               commitHistory()
             }}
@@ -156,7 +212,7 @@ export function PropertiesPanel() {
               commitHistory()
             }}
             onReset={() => {
-              const sc = PRIMITIVE_DEFAULTS[object.type].scale
+              const sc = defaults!.scale
               updateObject(object.id, { scale: [...sc] as Vector3Tuple })
               commitHistory()
             }}
@@ -191,8 +247,8 @@ export function PropertiesPanel() {
             </label>
           </Field>
 
-          {/* 材质（P1 5.3） */}
-          <MaterialSection object={object} />
+          {/* 材质（P1 5.3）；模型实例保留资产原材质 */}
+          {object.type !== 'model' && <MaterialSection object={object} />}
         </Fragment>
       )}
     </aside>
@@ -203,7 +259,7 @@ export function PropertiesPanel() {
 
 type NumericMaterialKey = 'shininess' | 'metalness' | 'roughness'
 
-function MaterialSection({ object }: { object: SceneObject }) {
+function MaterialSection({ object }: { object: PrimitiveObject }) {
   const updateObject = useEditorStore((s) => s.updateObject)
   const commitHistory = useEditorStore((s) => s.commitHistory)
   const { material } = object

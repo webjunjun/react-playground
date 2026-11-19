@@ -11,7 +11,8 @@ import {
 import type { Group, Object3D, Vector3Tuple } from 'three'
 import { useEditorStore } from '@/store/editor'
 import { useViewStore } from '@/store/view'
-import type { SceneObject, TransformMode } from '@/types/editor'
+import type { PrimitiveObject, PrimitiveType, TransformMode } from '@/types/editor'
+import { ModelInstance } from './ModelMesh'
 
 /** 点击判定阈值（px）：指针位移超过该值视为相机拖拽，不触发选中 */
 const CLICK_TOLERANCE = 4
@@ -170,16 +171,26 @@ export function Scene() {
       )}
 
       {/* 场景对象（仅渲染可见项；选中且未锁定时绑定 Gizmo） */}
-      {objects.filter((o) => o.visible).map((o) => (
-        <StaticMesh
-          key={o.id}
-          object={o}
-          selected={o.id === selectedId && !o.locked}
-          wireframe={shade === 'wire'}
-          onPick={select}
-          onBind={setSelectedGroup}
-        />
-      ))}
+      {objects.filter((o) => o.visible).map((o) =>
+        o.type === 'model' ? (
+          <ModelInstance
+            key={o.id}
+            object={o}
+            selected={o.id === selectedId && !o.locked}
+            onPick={select}
+            onBind={setSelectedGroup}
+          />
+        ) : (
+          <StaticMesh
+            key={o.id}
+            object={o}
+            selected={o.id === selectedId && !o.locked}
+            wireframe={shade === 'wire'}
+            onPick={select}
+            onBind={setSelectedGroup}
+          />
+        ),
+      )}
 
       {/* Gizmo：不进入 R3F 拾取；用 busy 标记避免点 Gizmo 被误判为空白 */}
       {selectedGroup && selectedId && (
@@ -230,7 +241,7 @@ function StaticMesh({
   onPick,
   onBind,
 }: {
-  object: SceneObject
+  object: PrimitiveObject
   selected: boolean
   wireframe: boolean
   onPick: (id: string) => void
@@ -268,7 +279,7 @@ function StaticMesh({
 }
 
 /** 按对象材质类型渲染；全局线框覆盖所有材质，Basic 自身线框仅作用于 Basic */
-function ObjectMaterial({ object, wireframe }: { object: SceneObject; wireframe: boolean }) {
+function ObjectMaterial({ object, wireframe }: { object: PrimitiveObject; wireframe: boolean }) {
   const { color, material } = object
 
   switch (material.type) {
@@ -309,7 +320,7 @@ function ObjectMaterial({ object, wireframe }: { object: SceneObject; wireframe:
   }
 }
 
-function Geometry({ type }: { type: SceneObject['type'] }) {
+function Geometry({ type }: { type: PrimitiveType }) {
   switch (type) {
     case 'box':
       return <boxGeometry args={[1, 1, 1]} />
