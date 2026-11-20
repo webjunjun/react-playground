@@ -9,6 +9,38 @@
   font-size: 14px;
 }
 
+/* ---------- 滚动条 ---------- */
+/* 仅作用于编辑器内部，避免影响浅色的主页 / 示例页 */
+.editor-layout * {
+  scrollbar-width: thin;
+  scrollbar-color: #3a4054 transparent;
+}
+
+.editor-layout ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.editor-layout ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-layout ::-webkit-scrollbar-thumb {
+  background: #2f3444;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 8px;
+}
+
+.editor-layout ::-webkit-scrollbar-thumb:hover {
+  background: #4b5266;
+  background-clip: padding-box;
+}
+
+.editor-layout ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ---------- 顶部工具栏 ---------- */
 .toolbar {
   display: flex;
@@ -163,7 +195,7 @@
 /* 资源库：卡片固定宽度，列数随面板宽度自适应；改 104px 即可统一调整卡片宽度 */
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 104px);
+  grid-template-columns: repeat(auto-fill, 96px);
   gap: 8px;
   justify-content: start;
 }
@@ -1289,4 +1321,95 @@
   font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* ---------- 多选：批量操作栏 / 属性摘要（A6） ---------- */
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(170, 59, 255, 0.35);
+  border-radius: 6px;
+  background: rgba(170, 59, 255, 0.08);
+}
+
+.batch-count {
+  font-size: 12px;
+  color: #d1d5db;
+  white-space: nowrap;
+}
+
+.batch-buttons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.batch-buttons button {
+  padding: 3px 8px;
+  border: 1px solid #2a2d3a;
+  border-radius: 4px;
+  background: #0f1117;
+  color: #d1d5db;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.batch-buttons button:hover {
+  border-color: var(--accent);
+  color: #e5e7eb;
+}
+
+.batch-buttons button.danger:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
+.multi-select-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.multi-select-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multi-select-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #2a2d3a;
+  border-radius: 6px;
+  background: #0f1117;
+  color: #d1d5db;
+  font-size: 12px;
+}
+
+.multi-select-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-select-lock {
+  flex-shrink: 0;
+  color: #f59e0b;
+  font-size: 11px;
+}
+
+.multi-select-more {
+  justify-content: center;
+  color: #6b7280;
 }
