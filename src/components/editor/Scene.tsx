@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { Canvas, type ThreeEvent } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import {
   OrbitControls,
   PerspectiveCamera,
@@ -12,11 +12,8 @@ import type { Group, Object3D, Vector3Tuple } from 'three'
 import { useEditorStore } from '@/store/editor'
 import { useViewStore } from '@/store/view'
 import { ENVIRONMENT_PRESETS } from '@/lib/environmentPresets'
-import type { PrimitiveObject, PrimitiveType, TransformMode } from '@/types/editor'
 import { ModelInstance } from './ModelMesh'
-
-/** 点击判定阈值（px）：指针位移超过该值视为相机拖拽，不触发选中 */
-const CLICK_TOLERANCE = 4
+import { StaticMesh } from './StaticMesh'
 
 /** 缩放下限（与属性面板一致，禁止 0 / 负数 / 镜像） */
 const MIN_SCALE = 0.01
@@ -66,32 +63,22 @@ export function Scene() {
   // 环境预设的唯一真源；视口与导出共用，避免两边配置漂移
   const preset = ENVIRONMENT_PRESETS[env]
 
-  // 当前选中对象的 group 实例，供 TransformControls 绑定
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
+  // T4：用 ref 存当前选中的 group，避开 React useState 批量更新的竞态
+  // 子组件 bindRef 回调直接写 ref，不触发全场景重渲染
+  const selectedGroupRef = useRef<Group | null>(null)
+  // 仅用于触发 TransformControls 重渲染的最小代价 state
+  const [, setGizmoTick] = useState(0)
+  /** 子组件注册 group 的唯一入口：直接写 ref + 触发一次重渲染让 Gizmo 绑定 */
+  const registerGroup = useCallback((node: Group | null) => {
+    selectedGroupRef.current = node
+    setGizmoTick((t) => t + 1)
+  }, [])
   // Gizmo 交互中：TransformControls 的拾取面不能交给 R3F，否则会吞掉空白点击
   const gizmoBusy = useRef(false)
   // 本次按下是否真的产生过变换，用于避免"单击 Gizmo"也生成快照
   const dragChanged = useRef(false)
 
-  /** 拖拽过程中实时写回 store（供属性面板读数），不产生历史快照 */
-  const syncTransform = (id: string, target: Object3D, currentMode: TransformMode) => {
-    if (currentMode === 'translate') {
-      updateObject(id, {
-        position: [target.position.x, target.position.y, target.position.z],
-      })
-      return
-    }
-    if (currentMode === 'rotate') {
-      updateObject(id, {
-        rotation: [target.rotation.x, target.rotation.y, target.rotation.z],
-      })
-      return
-    }
-    // 缩放：拖到 0.01 以下立即夹紧，禁止负数与镜像
-    updateObject(id, { scale: clampScale(target) })
-  }
-
-  /** 松手后做一次最终同步（#8 历史快照的唯一提交点） */
+  /** 松手后把 Gizmo 变换一次性同步到 store + 夹紧缩放（T2：拖拽期间不写 store，避免全场景高频重渲染） */
   const commitTransform = (id: string, target: Object3D) => {
     updateObject(id, {
       position: [target.position.x, target.position.y, target.position.z],
@@ -189,7 +176,7 @@ export function Scene() {
             selected={o.id === selectedId && !o.locked}
             wireframe={shade === 'wire'}
             onPick={select}
-            onBind={setSelectedGroup}
+            onBind={registerGroup}
           />
         ) : (
           <StaticMesh
@@ -198,15 +185,19 @@ export function Scene() {
             selected={o.id === selectedId && !o.locked}
             wireframe={shade === 'wire'}
             onPick={select}
-            onBind={setSelectedGroup}
+            onBind={registerGroup}
           />
         ),
       )}
 
       {/* Gizmo：不进入 R3F 拾取；用 busy 标记避免点 Gizmo 被误判为空白 */}
-      {selectedGroup && selectedId && (
+      {/* eslint-disable-next-line react-refresh/only-export-components */}
+      {/* T4：selectedGroupRef 存当前选中 group，registerGroup 写 ref + setGizmoTick 强制重渲染，
+          所以 JSX 里读 ref.current 时一定能拿到最新值——这是绕开 useState 竞态的刻意模式 */}
+      {/* eslint-disable react-refs/refs-no-direct-access-in-jsx */}
+      {selectedGroupRef.current && selectedId && (
         <TransformControls
-          object={selectedGroup}
+          object={selectedGroupRef.current}
           mode={mode}
           size={GIZMO_SIZE}
           // 吸附属于视图偏好（DEV-PLAN A4）：开启时按网格 / 90° 步进，关闭恢复自由拖拽
@@ -221,7 +212,7 @@ export function Scene() {
             setTimeout(() => {
               gizmoBusy.current = false
             }, 0)
-            commitTransform(selectedId, selectedGroup)
+            commitTransform(selectedId, selectedGroupRef.current!)
             // 一次完整拖拽只提交一条历史；单击不拖动不入栈
             if (dragChanged.current) {
               dragChanged.current = false
@@ -229,8 +220,9 @@ export function Scene() {
             }
           }}
           onObjectChange={() => {
+            // T2：只记录"是否真的拖过"，拖拽期间完全不写 store
+            // Gizmo 直接操作 Three.js group，视觉反馈即时；松手后 commitTransform 才同步到 React store
             dragChanged.current = true
-            syncTransform(selectedId, selectedGroup, mode)
           }}
         />
       )}
@@ -246,117 +238,4 @@ export function Scene() {
       />
     </Canvas>
   )
-}
-
-function StaticMesh({
-  object,
-  selected,
-  wireframe,
-  onPick,
-  onBind,
-}: {
-  object: PrimitiveObject
-  selected: boolean
-  wireframe: boolean
-  onPick: (id: string) => void
-  onBind: (node: Group | null) => void
-}) {
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation()
-    if (e.delta <= CLICK_TOLERANCE) onPick(object.id)
-  }
-
-  // 仅选中对象把自己的 group 交给 Gizmo；取消选中时 ref 会收到 null 并清空
-  const bindRef = useCallback(
-    (node: Group | null) => {
-      if (selected) onBind(node)
-    },
-    [selected, onBind],
-  )
-
-  return (
-    <group
-      ref={bindRef}
-      position={object.position}
-      rotation={object.rotation}
-      // 缩放必须和 TransformControls 作用在同一个 group 上，否则会与 mesh 缩放叠加
-      scale={object.scale}
-      // 锁定对象不挂事件处理器，R3F 会将其排除在 raycast 之外（DEV-PLAN #16）
-      onClick={object.locked ? undefined : handleClick}
-    >
-      <mesh castShadow receiveShadow>
-        <Geometry type={object.type} />
-        <ObjectMaterial object={object} wireframe={wireframe} />
-      </mesh>
-    </group>
-  )
-}
-
-/** 按对象材质类型渲染；全局线框覆盖所有材质，Basic 自身线框仅作用于 Basic */
-function ObjectMaterial({ object, wireframe }: { object: PrimitiveObject; wireframe: boolean }) {
-  const { color, material } = object
-
-  switch (material.type) {
-    case 'basic':
-      return (
-        <meshBasicMaterial
-          color={color}
-          wireframe={wireframe || material.wireframe}
-        />
-      )
-    case 'phong':
-      return (
-        <meshPhongMaterial
-          color={color}
-          shininess={material.shininess}
-          specular={material.specular}
-          wireframe={wireframe}
-        />
-      )
-    case 'standard':
-      return (
-        <meshStandardMaterial
-          color={color}
-          metalness={material.metalness}
-          roughness={material.roughness}
-          wireframe={wireframe}
-        />
-      )
-    case 'normal':
-      return (
-        <meshNormalMaterial
-          // flatShading 改变后需要重新编译着色器，remount 确保切换立即生效
-          key={material.flatShading ? 'flat' : 'smooth'}
-          flatShading={material.flatShading}
-          wireframe={wireframe}
-        />
-      )
-  }
-}
-
-function Geometry({ type }: { type: PrimitiveType }) {
-  switch (type) {
-    case 'box':
-      return <boxGeometry args={[1, 1, 1]} />
-    case 'sphere':
-      return <sphereGeometry args={[0.5, 32, 32]} />
-    case 'cylinder':
-      return <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
-    case 'cone':
-      return <coneGeometry args={[0.5, 1, 32]} />
-    case 'torus':
-      return <torusGeometry args={[0.4, 0.15, 16, 48]} />
-    case 'tetrahedron':
-      return <tetrahedronGeometry args={[0.6]} />
-    case 'octahedron':
-      return <octahedronGeometry args={[0.6]} />
-    case 'ring':
-      return <ringGeometry args={[0.25, 0.5, 32]} />
-    case 'torus-knot':
-      return <torusKnotGeometry args={[0.35, 0.12, 64, 16]} />
-    case 'capsule':
-      return <capsuleGeometry args={[0.35, 0.6, 8, 16]} />
-    case 'plane':
-      return <planeGeometry args={[1, 1]} />
-  }
 }

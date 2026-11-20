@@ -15,7 +15,7 @@ import { useAssetsStore } from '@/store/assets'
 import '@/assets/styles/editor.css'
 
 /**
- * 编辑器页面（PRD 3.1 三栏布局）
+ * 编辑器页面三栏布局
  * 场景数据统一来自 editor store；页面只负责布局
  * 挂载时检测 localStorage 自动草稿，提示恢复
  */
@@ -24,7 +24,7 @@ export default function Editor() {
   const replaceScene = useEditorStore((s) => s.replaceScene)
   const hydrateAssets = useAssetsStore((s) => s.hydrate)
 
-  // 先恢复资产库，再检查自动草稿，避免模型实例先渲染成缺失态（PRD §3 M1）
+  // 先恢复资产库，再检查自动草稿，避免模型实例先渲染成缺失态
   useEffect(() => {
     let cancelled = false
     void hydrateAssets().then(() => {

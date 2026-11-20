@@ -12,6 +12,7 @@ import type {
 import { MOCK_OBJECTS } from '@/components/editor/presets'
 import { createCopyObject, createModelObject, createSceneObject } from '@/lib/objectFactory'
 import { serializeScene, writeAutosave, type SceneFile } from '@/lib/sceneIO'
+import { toast } from '@/components/ui/Toast'
 import { useAssetsStore } from '@/store/assets'
 import { useViewStore } from '@/store/view'
 
@@ -103,7 +104,10 @@ function snapshotAndSave(
   deletedAssets?: ModelAsset[],
 ): SnapshotFields {
   const result = pushSnapshot(state, next, deletedAssets)
-  writeAutosave(serializeScene(result.objects, state.env, state.ground))
+  // T6：writeAutosave 失败（配额满/隐私模式）时提示用户，不再静默丢弃
+  if (!writeAutosave(serializeScene(result.objects, state.env, state.ground))) {
+    toast.info('自动草稿保存失败，存储空间可能已满（草稿已静默丢弃）', 5000)
+  }
   return result
 }
 
@@ -236,7 +240,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         const restore = useAssetsStore.getState().restoreAsset
         leaving.deletedAssets.forEach((asset) => void restore(asset))
       }
-      writeAutosave(serializeScene(entry.objects, state.env, state.ground))
+      if (!writeAutosave(serializeScene(entry.objects, state.env, state.ground))) {
+        toast.info('自动草稿保存失败，存储空间可能已满（草稿已静默丢弃）', 5000)
+      }
       return { objects: entry.objects, selectedId: entry.selectedId, historyIndex: index }
     }),
   redo: () =>
@@ -249,7 +255,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         const remove = useAssetsStore.getState().removeAsset
         entry.deletedAssets.forEach((asset) => void remove(asset.id))
       }
-      writeAutosave(serializeScene(entry.objects, state.env, state.ground))
+      if (!writeAutosave(serializeScene(entry.objects, state.env, state.ground))) {
+        toast.info('自动草稿保存失败，存储空间可能已满（草稿已静默丢弃）', 5000)
+      }
       return { objects: entry.objects, selectedId: entry.selectedId, historyIndex: index }
     }),
   replaceScene: (file) =>

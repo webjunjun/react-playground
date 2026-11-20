@@ -401,12 +401,13 @@ export function readAutosave(): SceneFile | null {
   }
 }
 
-/** 写自动草稿；静默，不抛错 */
-export function writeAutosave(file: SceneFile) {
+/** 写自动草稿；返回 true 成功，false 失败（配额满 / 隐私模式 / 其他异常） */
+export function writeAutosave(file: SceneFile): boolean {
   try {
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(file))
+    return true
   } catch {
-    // 配额满 / 隐私模式下 localStorage 不可用，静默丢弃
+    return false
   }
 }
 
