@@ -1,0 +1,443 @@
+/* 手势粒子场页面：全屏舞台，不使用默认内容宽度 */
+body:has(.gesture-page) #root,
+body:has(.gesture-gate) #root {
+  width: 100%;
+  border-inline: none;
+  display: block;
+  text-align: left;
+  min-height: 100vh;
+}
+
+body:has(.gesture-page),
+body:has(.gesture-gate) {
+  background: #06070a;
+}
+
+.gesture-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 62% 55% at 47% 46%, #101728 0%, #080a12 56%, #06070a 100%);
+  color: #e8e8ec;
+  user-select: none;
+}
+
+.gesture-stage {
+  position: absolute;
+  inset: 0;
+}
+
+/* 暗角：把注意力收到星系中心，也让加法混合的边缘不那么散 */
+.gesture-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 72% 66% at 50% 46%,
+    rgba(0, 0, 0, 0) 42%,
+    rgba(3, 4, 8, 0.55) 100%
+  );
+}
+
+.gesture-stage canvas {
+  display: block;
+}
+
+/* 顶部左侧 */
+.gesture-bar {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gesture-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e8e8ec;
+  letter-spacing: 0.2px;
+}
+
+.gesture-keycap {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 15px;
+  color: #7a7a86;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  padding: 0 5px;
+  min-width: 18px;
+  text-align: center;
+}
+
+button.gesture-keycap {
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+}
+
+button.gesture-keycap:hover {
+  color: #c8c8ce;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 顶部中间状态 */
+.gesture-status {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  color: #c8c8ce;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.gesture-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6e6e78;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.gesture-dot.is-live {
+  background: #5dcaa5;
+  box-shadow: 0 0 8px rgba(93, 202, 165, 0.9);
+}
+
+.gesture-dot.is-error {
+  background: #f09595;
+  box-shadow: 0 0 8px rgba(240, 149, 149, 0.9);
+}
+
+/* 右侧手势指南 */
+.gesture-guide {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  width: 218px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: rgba(12, 14, 20, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(10px);
+}
+
+.gesture-guide-title {
+  margin: 0 0 8px 6px;
+  font-size: 12px;
+  color: #8a8a96;
+  letter-spacing: 0.4px;
+}
+
+.gesture-guide-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #b8b8c0;
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+.gesture-guide-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.gesture-guide-row.is-active {
+  background: rgba(133, 183, 235, 0.14);
+  border-left-color: #85b7eb;
+  color: #e8e8ec;
+}
+
+/* 手势识别命中时额外加一层绿边，和「手动选中」区分开 */
+.gesture-guide-row.is-detected {
+  box-shadow: inset 0 0 0 1px rgba(93, 202, 165, 0.32);
+}
+
+.gesture-guide-gesture {
+  flex: 1;
+}
+
+.gesture-guide-name {
+  font-size: 11px;
+  color: #7a7a86;
+}
+
+.gesture-guide-row.is-active .gesture-guide-name {
+  color: #85b7eb;
+}
+
+.gesture-guide-row.is-active .gesture-keycap {
+  color: #85b7eb;
+  border-color: rgba(133, 183, 235, 0.5);
+}
+
+.gesture-guide-note {
+  margin: 8px 6px 2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #5f5f6a;
+}
+
+/* 底部提示 */
+.gesture-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  margin: 0;
+  font-size: 11.5px;
+  color: #6e6e78;
+  white-space: nowrap;
+}
+
+/* 移动端拦截 */
+.gesture-gate {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: #06070a;
+  color: #b8b8c0;
+}
+
+.gesture-gate-card {
+  max-width: 400px;
+  padding: 28px 26px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.gesture-gate-card h1 {
+  margin: 10px 0 14px;
+  font-size: 20px;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: #f0f0f4;
+}
+
+.gesture-gate-card p {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.gesture-gate-tag {
+  display: inline-block;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: #85b7eb;
+}
+
+.gesture-gate-note {
+  color: #6e6e78;
+}
+
+@media (max-width: 1100px) {
+  .gesture-guide {
+    width: 190px;
+  }
+}
+
+.gesture-debug {
+  position: absolute;
+  left: 232px;
+  bottom: 16px;
+  z-index: 9;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(93, 202, 165, 0.4);
+  color: #5dcaa5;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+/* 左下角摄像头小窗 */
+.gesture-cam {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 3;
+  width: 200px;
+  height: 150px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0e1014;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.gesture-cam.is-live {
+  border-style: solid;
+  border-color: rgba(93, 202, 165, 0.45);
+  box-shadow: 0 0 0 1px rgba(93, 202, 165, 0.12);
+}
+
+.gesture-cam-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.gesture-cam-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+
+.gesture-cam.is-live .gesture-cam-video {
+  opacity: 1;
+}
+
+.gesture-cam-trigger {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  color: #8a8a96;
+  font-family: inherit;
+  font-size: 12px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.gesture-cam-trigger:hover:not(:disabled) {
+  color: #e8e8ec;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.gesture-cam-trigger:disabled {
+  cursor: default;
+  color: #5f5f6a;
+}
+
+.gesture-cam-tag {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  color: #6e6e78;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.gesture-cam-live {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  z-index: 2;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5dcaa5;
+  box-shadow: 0 0 8px rgba(93, 202, 165, 0.9);
+}
+
+/* 摄像头错误卡片 */
+.gesture-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: min(380px, calc(100vw - 48px));
+  padding: 14px 16px 13px;
+  border-radius: 12px;
+  background: rgba(16, 18, 24, 0.88);
+  border: 1px solid rgba(240, 149, 149, 0.28);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.gesture-notice-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #f0b4b4;
+}
+
+.gesture-notice-detail {
+  margin: 7px 0 12px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #a0a0a8;
+}
+
+.gesture-notice-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gesture-btn {
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: #c8c8ce;
+  font-family: inherit;
+  font-size: 12px;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.gesture-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8e8ec;
+}
+
+.gesture-btn-primary {
+  border-color: rgba(133, 183, 235, 0.45);
+  background: rgba(133, 183, 235, 0.12);
+  color: #cfe2f7;
+}
+
+.gesture-btn-primary:hover {
+  border-color: rgba(133, 183, 235, 0.7);
+  background: rgba(133, 183, 235, 0.2);
+}
